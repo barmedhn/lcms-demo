@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BARMED® — Legal Case Management (Demo)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Chart.js for lightweight reporting -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root { --brand:#0ea5e9; }
+    html, body { height: 100%; }
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    .chip { @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium; }
+    .btn { @apply inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-inset ring-black/5 hover:shadow; }
+    .btn-primary { @apply bg-sky-600 text-white hover:bg-sky-700; }
+    .btn-soft { @apply bg-white text-gray-800; }
+    .card { @apply rounded-2xl bg-white shadow-lg ring-1 ring-black/5; }
+    .input { @apply w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500; }
+    .label { @apply text-xs font-medium text-gray-600; }
+    .table { @apply min-w-full border-separate border-spacing-y-2; }
+    .kbd { @apply inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-mono; }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div class="min-h-full">
+    <!-- Top Bar -->
+    <header class="sticky top-0 z-20 border-b border-gray-200 bg-white/80 backdrop-blur">
+      <div class="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8 flex items-center gap-4">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-xl bg-sky-600 text-white grid place-items-center font-extrabold">B</div>
+          <div>
+            <h1 class="text-lg font-bold leading-tight">BARMED® — Legal Case Management (Demo)</h1>
+            <p class="text-xs text-gray-500">Client‑side only • Stores data in your browser (localStorage)</p>
+          </div>
+        </div>
+        <div class="ml-auto flex items-center gap-2">
+          <button id="runTestsBtn" class="btn">Run Tests</button>
+          <button id="exportBtn" class="btn btn-soft">Export JSON</button>
+          <label class="btn btn-soft cursor-pointer">Import JSON<input id="importInput" type="file" accept="application/json" class="sr-only"/></label>
+          <button id="resetBtn" class="btn text-red-600 ring-red-200 hover:bg-red-50">Reset Data</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Sidebar -->
+      <aside class="lg:col-span-3 xl:col-span-2">
+        <nav class="card p-3">
+          <div class="text-xs mb-2 text-gray-500 px-2">Modules</div>
+          <ul id="nav" class="space-y-1">
+            <li><button data-view="dashboard" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">🏠 Dashboard</button></li>
+            <li><button data-view="cases" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">📁 Cases</button></li>
+            <li><button data-view="documents" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">📎 Documents</button></li>
+            <li><button data-view="time" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">⏱️ Time & Billing</button></li>
+            <li><button data-view="clients" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">👥 Clients / Portal</button></li>
+            <li><button data-view="workflows" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">🧩 Workflows</button></li>
+            <li><button data-view="reports" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">📊 Reports</button></li>
+            <li><button data-view="settings" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">⚙️ Settings</button></li>
+          </ul>
+        </nav>
+        <div class="card p-4 mt-4">
+          <div class="text-sm font-semibold">Quick Add</div>
+          <div class="mt-3 flex flex-col gap-2">
+            <button id="quickNewCase" class="btn btn-primary w-full">New Case</button>
+            <button id="quickNewClient" class="btn btn-soft w-full">New Client</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Content -->
+      <section id="content" class="lg:col-span-9 xl:col-span-10 space-y-6"></section>
+    </main>
+  </div>
+
+  <!-- App Script -->
+  <script>
+  // ==========================
+  // Minimal Client-side Store
+  // ==========================
+  const LS_KEY = 'barmed_lcms_v1';
+  const nowISO = () => new Date().toISOString();
+  const uid = (p='id') => p + '_' + Math.random().toString(36).slice(2,9);
+
+  const defaultData = () => ({
+    settings: { hourlyRate: 100, currency: 'USD', firmName: 'BARMED®', taxPercent: 0, locale: 'en-US' },
+    clients: [],
+    cases: [],
+    documents: [], // {id, caseId, name, kind, size, addedAt}
+    portalMessages: [], // {id, caseId, from, body, at}
+  });
+
+  let DB = load();
+  function load(){
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      return raw ? JSON.parse(raw) : defaultData();
+    } catch(e){
+      console.warn('Corrupt storage, resetting');
+      return defaultData();
+    }
+  }
+  function save(){ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }
+
+  // ==========================
+  // Helpers
+  // ==========================
+  function formatMoney(n){
+    try { return new Intl.NumberFormat(DB.settings.locale, { style:'currency', currency: DB.settings.currency }).format(n || 0); }
+    catch { return (DB.settings.currency + ' ' + (n||0).toFixed(2)); }
+  }
+  function el(html){
+    const t = document.createElement('template');
+    t.innerHTML = html.trim();
+    return t.content.firstElementChild;
+  }
+  function pill(status){
+    const color = {
+      Open:'bg-emerald-100 text-emerald-800',
+      Pending:'bg-amber-100 text-amber-800',
+      Closed:'bg-gray-200 text-gray-700',
+      OnHold:'bg-violet-100 text-violet-800'
+    }[status] || 'bg-gray-100 text-gray-700';
+    return `<span class="chip ${color}">${status}</span>`;
+  }
+
+  // ===== Honduras ID Helpers =====
+  function formatDNI(raw){
+    const digits = String(raw||'').replace(/\D/g,'').slice(0,12);
+    const parts = [digits.slice(0,4), digits.slice(4,8), digits.slice(8,12)].filter(Boolean);
+    return parts.join(' ');
+  }
+  function isValidDNI(s){ return /^\d{4}\s\d{4}\s\d{4}$/.test(String(s||'')); }
+  function normalizeRTN(raw){ return String(raw||'').replace(/\D/g,'').slice(0,13); }
+  function isValidRTN(s){ return /^\d{13}$/.test(String(s||'')); }
+
+  // Auto-format/limit inputs globally
+  document.addEventListener('input', (e)=>{
+    if(e && e.target){
+      if(e.target.id === 'clDNI'){ e.target.value = formatDNI(e.target.value); }
+      if(e.target.id === 'clRTN'){ e.target.value = normalizeRTN(e.target.value); }
+    }
+  });
+
+  // ==========================
+  // Router / Views
+  // ==========================
+  const content = document.getElementById('content');
+  const routes = {
+    dashboard(){
+      const openCount = DB.cases.filter(c=>c.status!=='Closed').length;
+      const hours = totalHoursAll();
+      const revenue = totalBilledAll();
+      const latest = DB.cases.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,5);
+
+      content.innerHTML = `
+        <div class="grid md:grid-cols-3 gap-4">
+          <div class="card p-5">
+            <div class="text-sm text-gray-500">Open Cases</div>
+            <div class="text-3xl font-extrabold">${openCount}</div>
+          </div>
+          <div class="card p-5">
+            <div class="text-sm text-gray-500">Tracked Hours</div>
+            <div class="text-3xl font-extrabold">${hours.toFixed(2)} h</div>
+          </div>
+          <div class="card p-5">
+            <div class="text-sm text-gray-500">Billed (lifetime)</div>
+            <div class="text-3xl font-extrabold">${formatMoney(revenue)}</div>
+          </div>
+        </div>
+
+        <div class="card p-5">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold">Recent Cases</h2>
+            <button class="btn btn-primary" onclick="openCaseForm()">New Case</button>
+          </div>
+          <div class="mt-4 overflow-x-auto">
+            <table class="table">
+              <thead>
+                <tr class="text-left text-xs text-gray-500">
+                  <th class="px-2">Title</th>
+                  <th class="px-2">Client</th>
+                  <th class="px-2">Status</th>
+                  <th class="px-2">Opened</th>
+                  <th class="px-2">Hours</th>
+                  <th class="px-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                ${latest.map(c => `
+                  <tr class="bg-white">
+                    <td class="px-2 py-2 font-medium">${c.title}</td>
+                    <td class="px-2">${clientName(c.clientId)}</td>
+                    <td class="px-2">${pill(c.status)}</td>
+                    <td class="px-2 text-sm text-gray-500">${new Date(c.createdAt).toLocaleDateString()}</td>
+                    <td class="px-2">${totalHoursCase(c.id).toFixed(2)}</td>
+                    <td class="px-2"><button class="text-sky-700 underline" onclick="openCase('${c.id}')">Open</button></td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+      renderReportMini();
+    },
+    cases(){
+      const rows = DB.cases.slice().sort((a,b)=>a.status.localeCompare(b.status)).map(c=>`
+        <tr class="bg-white">
+          <td class="px-2 py-2 font-medium">${c.title}</td>
+          <td class="px-2">${clientName(c.clientId)}</td>
+          <td class="px-2">${pill(c.status)}</td>
+          <td class="px-2">${c.practiceArea||'-'}</td>
+          <td class="px-2">${totalHoursCase(c.id).toFixed(2)}</td>
+          <td class="px-2">${formatMoney(totalBilledCase(c.id))}</td>
+          <td class="px-2"><button class="text-sky-700 underline" onclick="openCase('${c.id}')">Open</button></td>
+        </tr>`).join('');
+
+      content.innerHTML = `
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Cases</h2>
+          <div class="flex gap-2">
+            <input id="caseSearch" class="input w-60" placeholder="Search…"/>
+            <button class="btn btn-primary" onclick="openCaseForm()">New Case</button>
+          </div>
+        </div>
+        <div class="card p-4 mt-3 overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr class="text-left text-xs text-gray-500">
+                <th class="px-2">Title</th><th class="px-2">Client</th><th class="px-2">Status</th><th class="px-2">Practice</th><th class="px-2">Hours</th><th class="px-2">Billed</th><th class="px-2"></th>
+              </tr>
+            </thead>
+            <tbody id="caseRows">${rows}</tbody>
+          </table>
+        </div>
+      `;
+      document.getElementById('caseSearch').addEventListener('input', e=>filterCases(e.target.value));
+    },
+    documents(){
+      content.innerHTML = `
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Documents (metadata only)</h2>
+          <div>
+            <label class="btn btn-primary cursor-pointer">Attach Document
+              <input id="docAttach" type="file" class="sr-only"/>
+            </label>
+          </div>
+        </div>
+        <div class="card p-4 mt-3 overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr class="text-left text-xs text-gray-500">
+                <th class="px-2">Name</th><th class="px-2">Type</th><th class="px-2">Size</</th><th class="px-2">Case</th><th class="px-2">Added</th>
+              </tr>
+            </thead>
+            <tbody id="docRows">${DB.documents.map(d=>`
+              <tr class="bg-white">
+                <td class="px-2 py-2">${d.name}</td>
+                <td class="px-2">${d.kind||'-'}</td>
+                <td class="px-2">${(d.size/1024).toFixed(1)} KB</td>
+                <td class="px-2">${caseTitle(d.caseId)||'-'}</td>
+                <td class="px-2 text-sm text-gray-500">${new Date(d.addedAt).toLocaleString()}</td>
+              </tr>`).join('')}</tbody>
+          </table>
+        </div>`;
+      const input = document.getElementById('docAttach');
+      input.addEventListener('change', onAttachDoc);
+    },
+    time(){
+      content.innerHTML = `
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Time & Billing</h2>
+          <button class="btn btn-primary" onclick="openTimer()">Start Timer</button>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4 mt-4">
+          <div class="card p-4">
+            <h3 class="font-semibold">Time Entries</h3>
+            <div id="timeList" class="mt-2 space-y-2">${renderTimeEntries()}</div>
+          </div>
+          <div class="card p-4">
+            <h3 class="font-semibold">Invoices</h3>
+            <div id="invoiceList" class="mt-2 space-y-2">${renderInvoices()}</div>
+            <button class="btn btn-soft mt-3" onclick="generateInvoice()">Generate Invoice (selected case)</button>
+          </div>
+        </div>`;
+    },
+    clients(){
+      content.innerHTML = `
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Clients & Portal</h2>
+          <button class="btn btn-primary" onclick="openClientForm()">New Client</button>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4 mt-4">
+          <div class="card p-4">
+            <h3 class="font-semibold">Clients</h3>
+            <div id="clientList" class="mt-3 space-y-2">${DB.clients.map(renderClientCard).join('')}</div>
+          </div>
+          <div class="card p-4">
+            <h3 class="font-semibold">Portal Messages</h3>
+            <div class="text-xs text-gray-500">Simulated secure messages per case</div>
+            <div id="portalList" class="mt-3 space-y-2">${renderPortal()}</div>
+          </div>
+        </div>`;
+    },
+    workflows(){
+      content.innerHTML = `
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Automated Workflows</h2>
+          <div class="text-sm text-gray-500">Apply templates to a case</div>
+        </div>
+        <div class="card p-4 mt-4">
+          <div class="grid md:grid-cols-2 gap-4">
+            ${workflowTemplates().map(t=>`
+              <div class="rounded-xl border p-4">
+                <div class="font-semibold">${t.name}</div>
+                <div class="text-sm text-gray-500">${t.desc}</div>
+                <div class="mt-3 flex gap-2 items-center">
+                  <select class="input" id="sel_${t.key}">
+                    <option value="">Select case…</option>
+                    ${DB.cases.map(c=>`<option value="${c.id}">${c.title}</option>`).join('')}
+                  </select>
+                  <button class="btn btn-primary" onclick="applyWorkflow('${t.key}')">Apply</button>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    },
+    reports(){
+      content.innerHTML = `
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Reports</h2>
+          <div class="text-sm text-gray-500">Hours & revenue by case and status</div>
+        </div>
+        <div class="grid md:grid-cols-2 gap-4 mt-4">
+          <div class="card p-4"><canvas id="hoursByCase"></canvas></div>
+          <div class="card p-4"><canvas id="revenueByCase"></canvas></div>
+          <div class="card p-4 md:col-span-2"><canvas id="statusBreakdown"></canvas></div>
+        </div>`;
+      setTimeout(renderFullReports, 0);
+    },
+    settings(){
+      content.innerHTML = `
+        <div class="card p-5 max-w-xl">
+          <h2 class="text-lg font-semibold">Settings</h2>
+          <div class="mt-4 grid grid-cols-2 gap-3">
+            <label class="label">Firm Name</label>
+            <input id="sFirm" class="input" value="${DB.settings.firmName}">
+            <label class="label">Hourly Rate</label>
+            <input id="sRate" class="input" type="number" step="0.01" value="${DB.settings.hourlyRate}">
+            <label class="label">Currency</label>
+            <input id="sCurrency" class="input" value="${DB.settings.currency}">
+            <label class="label">Tax %</label>
+            <input id="sTax" class="input" type="number" step="0.01" value="${DB.settings.taxPercent}">
+          </div>
+          <div class="mt-4 flex gap-2">
+            <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+            <button class="btn btn-soft" onclick="routes.dashboard()">Cancel</button>
+          </div>
+          <div class="mt-6 text-xs text-gray-500">Diagnostics: use the <span class="kbd">Run Tests</span> button in the header to verify core flows.</div>
+        </div>`;
+    }
+  };
+
+  // ==========================
+  // Navigation
+  // ==========================
+  const nav = document.getElementById('nav');
+  nav.addEventListener('click', (e)=>{
+    if(e.target.matches('button[data-view]')){
+      const v = e.target.getAttribute('data-view');
+      renderView(v);
+      [...nav.querySelectorAll('button')].forEach(b=>b.classList.remove('bg-sky-100'));
+      e.target.classList.add('bg-sky-100');
+    }
+  });
+  function renderView(v){
+    window.location.hash = v;
+    (routes[v]||routes.dashboard)();
+  }
+  window.addEventListener('hashchange', ()=>{
+    const v = location.hash.replace('#','')||'dashboard';
+    renderView(v);
+  });
+
+  // ==========================
+  // Cases
+  // ==========================
+  function clientName(id){ return (DB.clients.find(c=>c.id===id)||{}).name || '-'; }
+  function caseTitle(id){ return (DB.cases.find(c=>c.id===id)||{}).title || ''; }
+
+  function openCaseForm(caseId){
+    const existing = DB.cases.find(x=>x.id===caseId);
+    const c = existing || { id:'', title:'', clientId:'', status:'Open', practiceArea:'', dueDate:'', description:'', createdAt: nowISO(), timeEntries:[], invoices:[], tasks:[] };
+    const isEdit = !!existing;
+    const html = `
+      <div class="card p-5">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">${isEdit?'Edit':'New'} Case</h2>
+          ${isEdit?`<button class="text-red-600" onclick="deleteCase('${c.id}')">Delete</button>`:''}
+        </div>
+        <div class="grid md:grid-cols-2 gap-3 mt-4">
+          <label class="label">Title</label>
+          <input id="fTitle" class="input" value="${c.title}">
+          <label class="label">Client</label>
+          <select id="fClient" class="input">${['<option value="">Select…</option>',...DB.clients.map(cl=>`<option value="${cl.id}" ${cl.id===c.clientId?'selected':''}>${cl.name}</option>`)].join('')}</select>
+          <label class="label">Status</label>
+          <select id="fStatus" class="input">${['Open','Pending','OnHold','Closed'].map(s=>`<option ${s===c.status?'selected':''}>${s}</option>`).join('')}</select>
+          <label class="label">Practice Area</label>
+          <input id="fPA" class="input" value="${c.practiceArea||''}">
+          <label class="label">Due Date</label>
+          <input id="fDue" type="date" class="input" value="${c.dueDate||''}">
+          <label class="label">Description</label>
+          <textarea id="fDesc" class="input md:col-span-1" rows="3">${c.description||''}</textarea>
+        </div>
+        <div class="mt-4 flex gap-2">
+          <button class="btn btn-primary" onclick="saveCase('${c.id||''}')">Save</button>
+          <button class="btn btn-soft" onclick="routes.cases()">Cancel</button>
+        </div>
+      </div>`;
+    content.innerHTML = html;
+  }
+  function saveCase(id){
+    const title = document.getElementById('fTitle').value.trim();
+    if(!title) return alert('Title required');
+    const existing = DB.cases.find(c=>c.id===id);
+    const rec = {
+      id: id || uid('case'),
+      title,
+      clientId: document.getElementById('fClient').value || '',
+      status: document.getElementById('fStatus').value,
+      practiceArea: document.getElementById('fPA').value,
+      dueDate: document.getElementById('fDue').value,
+      description: document.getElementById('fDesc').value,
+      createdAt: existing ? existing.createdAt : nowISO(),
+      timeEntries: existing ? existing.timeEntries : [],
+      invoices: existing ? existing.invoices : [],
+      tasks: existing ? existing.tasks : []
+    };
+    const idx = DB.cases.findIndex(c=>c.id===rec.id);
+    if(idx>-1) DB.cases[idx]=rec; else DB.cases.push(rec);
+    save();
+    routes.cases();
+  }
+  function deleteCase(id){
+    if(!confirm('Delete this case?')) return;
+    DB.cases = DB.cases.filter(c=>c.id!==id);
+    DB.documents = DB.documents.filter(d=>d.caseId!==id);
+    DB.portalMessages = DB.portalMessages.filter(m=>m.caseId!==id);
+    save();
+    routes.cases();
+  }
+  function openCase(id){
+    const c = DB.cases.find(x=>x.id===id);
+    if(!c) return;
+    const tasks = (c.tasks||[]).map((t,i)=>`<li class="flex items-center gap-2"><input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${c.id}',${i},this.checked)"><span class="${t.done?'line-through text-gray-400':''}">${t.title}</span><span class="text-xs text-gray-400 ml-auto">${t.due||''}</span></li>`).join('');
+    const entries = (c.timeEntries||[]).map((t,i)=>renderTimeItem(t, c.id, i)).join('');
+    const inv = (c.invoices||[]).map((v,i)=>renderInvoiceItem(v, c.id, i)).join('');
+
+    content.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-sm text-gray-500">Case</div>
+          <h2 class="text-xl font-bold">${c.title}</h2>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-soft" onclick="openCaseForm('${c.id}')">Edit</button>
+          <button class="btn btn-primary" onclick="openTimer('${c.id}')">Start Timer</button>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-4 mt-4">
+        <div class="card p-4 lg:col-span-2">
+          <div class="grid md:grid-cols-2 gap-4">
+            <div>
+              <div class="text-sm text-gray-500">Status</div>
+              <div class="mt-1">${pill(c.status)}</div>
+            </div>
+            <div>
+              <div class="text-sm text-gray-500">Client</div>
+              <div class="mt-1">${clientName(c.clientId)}</div>
+            </div>
+            <div>
+              <div class="text-sm text-gray-500">Practice Area</div>
+              <div class="mt-1">${c.practiceArea||'-'}</div>
+            </div>
+            <div>
+              <div class="text-sm text-gray-500">Due Date</div>
+              <div class="mt-1">${c.dueDate||'-'}</div>
+            </div>
+          </div>
+          <div class="mt-4">
+            <div class="text-sm text-gray-500">Description</div>
+            <p class="mt-1">${(c.description||'–').replace(/\n/g,'<br>')}</p>
+          </div>
+        </div>
+        <div class="card p-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold">Tasks</h3>
+            <button class="btn btn-soft" onclick="addTask('${c.id}')">Add</button>
+          </div>
+          <ul class="mt-2 space-y-2" id="taskList">${tasks||'<li class="text-sm text-gray-500">No tasks</li>'}</ul>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-4 mt-4">
+        <div class="card p-4">
+          <div class="flex items-center justify-between"><h3 class="font-semibold">Time Entries</h3>
+          <div class="text-sm text-gray-500">Total: ${totalHoursCase(c.id).toFixed(2)} h • ${formatMoney(totalBilledCase(c.id))}</div></div>
+          <div id="caseTime" class="mt-2 space-y-2">${entries||'<div class="text-sm text-gray-500">No time entries</div>'}</div>
+        </div>
+        <div class="card p-4">
+          <div class="flex items-center justify-between"><h3 class="font-semibold">Invoices</h3>
+          <button class="btn btn-soft" onclick="generateInvoice('${c.id}')">Generate</button></div>
+          <div id="caseInvoices" class="mt-2 space-y-2">${inv||'<div class="text-sm text-gray-500">No invoices</div>'}</div>
+        </div>
+      </div>
+    `;
+  }
+  function filterCases(q){
+    const rows = document.getElementById('caseRows');
+    const text = (q||'').toLowerCase();
+    rows.querySelectorAll('tr').forEach(tr=>{
+      tr.style.display = tr.textContent.toLowerCase().includes(text)?'':'';
+    });
+  }
+
+  // ==========================
+  // Tasks / Workflows
+  // ==========================
+  function addTask(caseId){
+    const title = prompt('Task title');
+    if(!title) return;
+    const c = DB.cases.find(c=>c.id===caseId);
+    c.tasks = c.tasks||[];
+    c.tasks.push({ title, done:false, due:'' });
+    save();
+    openCase(caseId);
+  }
+  function toggleTask(caseId, idx, done){
+    const c = DB.cases.find(c=>c.id===caseId);
+    if(!c) return;
+    c.tasks[idx].done = !!done;
+    save();
+  }
+  function workflowTemplates(){
+    return [
+      { key:'intake', name:'Client Intake', desc:'Creates initial tasks and deadlines', steps:[
+        {title:'Conflict check', days:1},
+        {title:'Engagement letter sent', days:2},
+        {title:'Collect KYC / IDs', days:3}
+      ]},
+      { key:'discovery', name:'Discovery', desc:'Basic civil discovery checklist', steps:[
+        {title:'Interrogatories draft', days:7},
+        {title:'RFPs to opposing party', days:10},
+        {title:'Schedule depositions', days:21}
+      ]},
+      { key:'filing', name:'Filing', desc:'Prepare and file initial complaint', steps:[
+        {title:'Draft complaint', days:5},
+        {title:'Assemble exhibits', days:6},
+        {title:'File with court', days:8}
+      ]}
+    ];
+  }
+  function applyWorkflow(key){
+    const tpl = workflowTemplates().find(t=>t.key===key);
+    const sel = document.getElementById('sel_'+key);
+    const caseId = sel.value;
+    if(!caseId) return alert('Select a case');
+    const c = DB.cases.find(x=>x.id===caseId);
+    c.tasks = c.tasks||[];
+    const base = new Date();
+    tpl.steps.forEach(s=>{
+      const due = new Date(base.getTime()+s.days*86400000).toISOString().slice(0,10);
+      c.tasks.push({ title:s.title, done:false, due });
+    });
+    save();
+    alert('Workflow applied to case: '+c.title);
+  }
+
+  // ==========================
+  // Time Tracking & Billing
+  // ==========================
+  let runningTimer = null;
+  function openTimer(caseId){
+    const caseOptions = DB.cases.map(c=>`<option value="${c.id}" ${caseId===c.id?'selected':''}>${c.title}</option>`).join('');
+    const modal = el(`
+      <div class="fixed inset-0 bg-black/40 grid place-items-center p-4">
+        <div class="card p-5 w-full max-w-md">
+          <h3 class="font-semibold">Timer</h3>
+          <div class="mt-3 space-y-3">
+            <div>
+              <label class="label">Case</label>
+              <select id="tCase" class="input">${caseOptions}</select>
+            </div>
+            <div>
+              <label class="label">Description</label>
+              <input id="tDesc" class="input" placeholder="e.g., Draft motion">
+            </div>
+            <div class="flex items-center gap-3">
+              <button id="tStart" class="btn btn-primary">Start</button>
+              <button id="tStop" class="btn btn-soft" disabled>Stop</button>
+              <div id="tElapsed" class="ml-auto text-sm text-gray-500">0:00:00</div>
+            </div>
+          </div>
+          <div class="mt-4 flex justify-end"><button class="btn" onclick="this.closest('.fixed').remove()">Close</button></div>
+        </div>
+      </div>`);
+    document.body.appendChild(modal);
+
+    let startAt = null, tick;
+    modal.querySelector('#tStart').onclick = ()=>{
+      startAt = Date.now();
+      if(runningTimer) clearInterval(runningTimer);
+      tick = ()=>{
+        const s = Math.floor((Date.now()-startAt)/1000);
+        const h = String(Math.floor(s/3600)).padStart(1,'0');
+        const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+        const sec = String(s%60).padStart(2,'0');
+        modal.querySelector('#tElapsed').textContent = `${h}:${m}:${sec}`;
+      };
+      runningTimer = setInterval(tick, 500);
+      modal.querySelector('#tStart').disabled = true;
+      modal.querySelector('#tStop').disabled = false;
+    };
+    modal.querySelector('#tStop').onclick = ()=>{
+      if(!startAt) return;
+      clearInterval(runningTimer);
+      const secs = Math.max(1, Math.floor((Date.now()-startAt)/1000));
+      const hours = secs/3600;
+      const caseId = modal.querySelector('#tCase').value;
+      const desc = modal.querySelector('#tDesc').value;
+      const c = DB.cases.find(x=>x.id===caseId);
+      c.timeEntries = c.timeEntries||[];
+      c.timeEntries.push({ at: nowISO(), hours, rate: DB.settings.hourlyRate, desc });
+      save();
+      alert(`Saved ${hours.toFixed(2)} h to ${c.title}`);
+      modal.remove();
+      if(location.hash.includes('time')) routes.time();
+      if(location.hash.includes('cases')) openCase(caseId);
+    };
+  }
+  function totalHoursCase(caseId){
+    const c = DB.cases.find(x=>x.id===caseId); if(!c) return 0;
+    return (c.timeEntries||[]).reduce((a,t)=>a+(t.hours||0),0);
+  }
+  function totalBilledCase(caseId){
+    const c = DB.cases.find(x=>x.id===caseId); if(!c) return 0;
+    return (c.timeEntries||[]).reduce((a,t)=>a+(t.hours||0)*(t.rate||DB.settings.hourlyRate),0);
+  }
+  function totalHoursAll(){
+    return DB.cases.reduce((sum,c)=>sum+totalHoursCase(c.id),0);
+  }
+  function totalBilledAll(){
+    return DB.cases.reduce((sum,c)=>sum+totalBilledCase(c.id),0);
+  }
+  function renderTimeItem(t, caseId, idx){
+    const amt = (t.hours||0) * (t.rate||DB.settings.hourlyRate);
+    return `<div class="rounded-xl border p-3 flex items-center gap-3">
+      <div class="text-sm">
+        <div class="font-medium">${(t.desc||'—')}</div>
+        <div class="text-gray-500">${new Date(t.at).toLocaleString()} • ${(t.hours||0).toFixed(2)} h × ${formatMoney(t.rate||DB.settings.hourlyRate)}</div>
+      </div>
+      <div class="ml-auto font-semibold">${formatMoney(amt)}</div>
+      <button class="text-red-600 text-sm" onclick="deleteTime('${caseId}',${idx})">Delete</button>
+    </div>`;
+  }
+  function renderTimeEntries(){
+    const items = [];
+    DB.cases.forEach(c=>{ (c.timeEntries||[]).forEach((t,i)=>items.push({c,t,i})) });
+    if(!items.length) return '<div class="text-sm text-gray-500">No entries</div>';
+    return items.map(({c,t,i})=>renderTimeItem(t,c.id,i)).join('');
+  }
+  function deleteTime(caseId, idx){
+    const c = DB.cases.find(x=>x.id===caseId); if(!c) return;
+    c.timeEntries.splice(idx,1); save();
+    if(location.hash.includes('time')) routes.time(); else openCase(caseId);
+  }
+
+  // Invoices
+  function generateInvoice(caseId){
+    const id = caseId || prompt('Enter Case ID (or open a case and click Generate)');
+    const c = DB.cases.find(x=>x.id===id);
+    if(!c) return alert('Case not found');
+    const lines = (c.timeEntries||[]).map(t=>({ label: t.desc||'Time', qty: t.hours, rate: t.rate||DB.settings.hourlyRate }));
+    if(!lines.length) return alert('No time entries to bill');
+    const subtotal = lines.reduce((a,l)=>a+l.qty*l.rate,0);
+    const tax = subtotal * (DB.settings.taxPercent/100);
+    const total = subtotal + tax;
+    c.invoices = c.invoices||[];
+    c.invoices.push({ id: uid('inv'), at: nowISO(), lines, subtotal, tax, total, paid:false });
+    save();
+    if(location.hash.includes('time')) routes.time(); else openCase(c.id);
+  }
+  function renderInvoiceItem(v, caseId, idx){
+    return `<div class="rounded-xl border p-3">
+      <div class="flex items-center justify-between">
+        <div class="font-semibold">Invoice #${v.id.slice(-6)}</div>
+        <div class="text-sm text-gray-500">${new Date(v.at).toLocaleString()}</div>
+      </div>
+      <div class="mt-1 text-sm">Subtotal ${formatMoney(v.subtotal)} • Tax ${formatMoney(v.tax)} • <span class="font-semibold">Total ${formatMoney(v.total)}</span></div>
+      <div class="mt-2 flex gap-2">
+        <button class="btn btn-soft" onclick="downloadInvoice('${caseId}',${idx})">Download</button>
+        <button class="btn ${v.paid?'bg-emerald-600 text-white':'btn-primary'}" onclick="togglePaid('${caseId}',${idx})">${v.paid?'Paid':'Mark Paid'}</button>
+        <button class="text-red-600" onclick="deleteInvoice('${caseId}',${idx})">Delete</button>
+      </div>
+    </div>`;
+  }
+  function renderInvoices(){
+    const items = [];
+    DB.cases.forEach(c=>{ (c.invoices||[]).forEach((v,i)=>items.push({c,v,i})) });
+    if(!items.length) return '<div class="text-sm text-gray-500">No invoices</div>';
+    return items.map(({c,v,i})=>renderInvoiceItem(v,c.id,i)).join('');
+  }
+  function togglePaid(caseId, idx){ const c = DB.cases.find(x=>x.id===caseId); c.invoices[idx].paid=!c.invoices[idx].paid; save(); if(location.hash.includes('time')) routes.time(); else openCase(caseId); }
+  function deleteInvoice(caseId, idx){ const c = DB.cases.find(x=>x.id===caseId); c.invoices.splice(idx,1); save(); if(location.hash.includes('time')) routes.time(); else openCase(caseId); }
+  function downloadInvoice(caseId, idx){
+    const c = DB.cases.find(x=>x.id===caseId); const v = c.invoices[idx];
+    const lines = v.lines.map(l=>`<tr><td>${l.label}</td><td style="text-align:right">${l.qty.toFixed(2)}</td><td style="text-align:right">${formatMoney(l.rate)}</td><td style="text-align:right">${formatMoney(l.qty*l.rate)}</td></tr>`).join('');
+    const html = `<!doctype html><html><head><meta charset='utf-8'><title>Invoice</title></head><body style="font-family:Inter,Arial; padding:24px;">
+      <h1 style="margin:0">${DB.settings.firmName}</h1>
+      <div>Invoice #${v.id}</div>
+      <div style="margin-top:8px">Case: ${c.title}</div>
+      <hr style="margin:16px 0">
+      <table style="width:100%; border-collapse:collapse" border="1" cellpadding="8">
+        <thead><tr><th>Description</th><th style="text-align:right">Hours</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead>
+        <tbody>${lines}</tbody>
+      </table>
+      <div style="margin-top:16px; text-align:right">
+        <div>Subtotal ${formatMoney(v.subtotal)}</div>
+        <div>Tax ${formatMoney(v.tax)}</div>
+        <div style="font-weight:700">Total ${formatMoney(v.total)}</div>
+      </div>
+    </body></html>`;
+    const blob = new Blob([html], {type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `invoice_${v.id}.html`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ==========================
+  // Documents (metadata only)
+  // ==========================
+  function onAttachDoc(e){
+    const f = e.target.files[0]; if(!f) return;
+    const caseId = (DB.cases[0]||{}).id || '';
+    DB.documents.push({ id: uid('doc'), caseId, name: f.name, kind: f.type || 'n/a', size: f.size||0, addedAt: nowISO() });
+    save(); routes.documents();
+  }
+
+  // ==========================
+  // Clients & Portal
+  // ==========================
+  function openClientForm(id){
+    const existing = DB.clients.find(x=>x.id===id);
+    const c = existing || { id:'', name:'', email:'', phone:'', dni:'', passport:'', rtn:'', address:'' };
+    const isEdit = !!existing;
+    content.innerHTML = `
+      <div class="card p-5 max-w-xl">
+        <h2 class="text-lg font-semibold">${isEdit?'Edit':'New'} Client</h2>
+        <div class="grid grid-cols-3 gap-3 mt-4">
+          <label class="label">Name</label>
+          <input id="clName" class="input col-span-2" value="${c.name}">
+          <label class="label">Email</label>
+          <input id="clEmail" class="input col-span-2" value="${c.email||''}">
+          <label class="label">Phone</label>
+          <input id="clPhone" class="input col-span-2" value="${c.phone||''}">
+          <label class="label">Documento Nacional de Identificación (DNI)</label>
+          <input id="clDNI" class="input col-span-2" value="${c.dni||''}" placeholder="0000 0000 0000" inputmode="numeric" maxlength="14">
+          <label class="label">Passport Number</label>
+          <input id="clPassport" class="input col-span-2" value="${c.passport||''}">
+          <label class="label">Tax Payer Number (RTN)</label>
+          <input id="clRTN" class="input col-span-2" value="${c.rtn||''}" placeholder="#############" inputmode="numeric" maxlength="13" pattern="\\d{13}">
+          <label class="label">Address</label>
+          <textarea id="clAddress" class="input col-span-2" rows="2">${c.address||''}</textarea>
+        </div>
+        <div class="mt-4 flex gap-2">
+          <button class="btn btn-primary" onclick="saveClient('${c.id||''}')">Save</button>
+          <button class="btn btn-soft" onclick="routes.clients()">Cancel</button>
+        </div>
+      </div>`;
+  }
+  function saveClient(id){
+    const name = document.getElementById('clName').value.trim(); if(!name) return alert('Name required');
+    // Validate & normalize DNI
+    const rawDNI = document.getElementById('clDNI').value;
+    const dniVal = rawDNI ? formatDNI(rawDNI) : '';
+    if(dniVal && !isValidDNI(dniVal)) { alert('DNI must be in the format 0000 0000 0000'); return; }
+    // Validate & normalize RTN (13 digits, no spaces)
+    const rawRTN = document.getElementById('clRTN').value;
+    const rtnVal = rawRTN ? normalizeRTN(rawRTN) : '';
+    if(rtnVal && !isValidRTN(rtnVal)) { alert('RTN must be exactly 13 digits (no spaces)'); return; }
+    const rec = {
+      id: id || uid('client'),
+      name,
+      email: document.getElementById('clEmail').value,
+      phone: document.getElementById('clPhone').value,
+      dni: dniVal,
+      passport: document.getElementById('clPassport').value,
+      rtn: rtnVal,
+      address: document.getElementById('clAddress').value
+    };
+    const idx = DB.clients.findIndex(c=>c.id===rec.id);
+    if(idx>-1) DB.clients[idx]=rec; else DB.clients.push(rec);
+    save();
+    routes.clients();
+  }
+  function renderClientCard(c){
+    const caseCount = DB.cases.filter(k=>k.clientId===c.id).length;
+    return `<div class="rounded-xl border p-3 flex items-center gap-3">
+      <div class="h-10 w-10 rounded-lg bg-sky-100 grid place-items-center text-sky-700 font-bold">${(c.name||'?').slice(0,2).toUpperCase()}</div>
+      <div class="text-sm">
+        <div class="font-semibold">${c.name}</div>
+        <div class="text-gray-500">${c.email||''} ${c.phone?('• '+c.phone):''}</div>
+        <div class="text-gray-500">DNI: ${c.dni||'-'} • RTN: ${c.rtn||'-'}${c.passport?(' • Passport: '+c.passport):''}</div>
+        ${c.address?`<div class="text-gray-500">${c.address}</div>`:''}
+      </div>
+      <div class="ml-auto text-xs text-gray-500">${caseCount} case(s)</div>
+      <button class="text-sky-700 text-sm underline" onclick="openClientForm('${c.id}')">Edit</button>
+    </div>`;
+  }
+  function renderPortal(){
+    const grouped = {};
+    DB.portalMessages.forEach(m=>{ grouped[m.caseId]=grouped[m.caseId]||[]; grouped[m.caseId].push(m); });
+    if(Object.keys(grouped).length===0) return '<div class="text-sm text-gray-500">No messages</div>';
+    return Object.entries(grouped).map(([caseId, msgs])=>{
+      return `<div class="rounded-xl border p-3">
+        <div class="text-sm font-semibold">${caseTitle(caseId)}</div>
+        <div class="mt-2 space-y-2">${msgs.map(m=>`
+          <div class="text-sm ${m.from==='client'?'':'text-right'}">
+            <span class="px-2 py-1 rounded-lg ${m.from==='client'?'bg-gray-100':'bg-sky-100'}">${m.body}</span>
+            <span class="text-xs text-gray-400">${new Date(m.at).toLocaleString()}</span>
+          </div>`).join('')}</div>
+        <div class="mt-2 flex gap-2"><input id="msg_${caseId}" class="input" placeholder="Write a reply…"><button class="btn btn-primary" onclick="sendPortal('${caseId}')">Send</button></div>
+      </div>`;
+    }).join('');
+  }
+  function sendPortal(caseId){
+    const inp = document.getElementById('msg_'+caseId);
+    const body = inp.value.trim(); if(!body) return;
+    DB.portalMessages.push({ id: uid('msg'), caseId, from:'firm', body, at: nowISO() });
+    save(); routes.clients();
+  }
+
+  // ==========================
+  // Reports
+  // ==========================
+  function renderReportMini(){
+    const container = el(`<div class="card p-4 mt-4"><canvas id="mini"></canvas></div>`);
+    content.appendChild(container);
+    try {
+      const ctx = document.getElementById('mini');
+      const labels = DB.cases.map(c=>c.title);
+      const data = DB.cases.map(c=>totalHoursCase(c.id));
+      new Chart(ctx, { type:'bar', data:{ labels, datasets:[{ label:'Hours by Case', data }] }, options:{ responsive:true, plugins:{legend:{display:false}} }});
+    } catch(err){
+      container.innerHTML = '<div class="text-sm text-gray-500">Charts unavailable (Chart.js not loaded)</div>';
+    }
+  }
+  function renderFullReports(){
+    try{
+      const labels = DB.cases.map(c=>c.title);
+      const hours = DB.cases.map(c=>totalHoursCase(c.id));
+      const revenue = DB.cases.map(c=>totalBilledCase(c.id));
+      new Chart(document.getElementById('hoursByCase'), { type:'bar', data:{ labels, datasets:[{label:'Hours', data:hours}]}, options:{plugins:{legend:{display:false}}} });
+      new Chart(document.getElementById('revenueByCase'), { type:'bar', data:{ labels, datasets:[{label:'Revenue', data:revenue}]}, options:{plugins:{legend:{display:false}}} });
+      const statuses = ['Open','Pending','OnHold','Closed'];
+      const statusCounts = statuses.map(s=>DB.cases.filter(c=>c.status===s).length);
+      new Chart(document.getElementById('statusBreakdown'), { type:'doughnut', data:{ labels:statuses, datasets:[{ data:statusCounts }] } });
+    }catch(e){
+      console.warn('Chart error', e);
+    }
+  }
+
+  // ==========================
+  // Settings / Export / Import / Tests
+  // ==========================
+  function saveSettings(){
+    DB.settings.firmName = document.getElementById('sFirm').value || 'BARMED®';
+    DB.settings.hourlyRate = parseFloat(document.getElementById('sRate').value)||100;
+    DB.settings.currency = document.getElementById('sCurrency').value || 'USD';
+    DB.settings.taxPercent = parseFloat(document.getElementById('sTax').value)||0;
+    save();
+    alert('Saved');
+  }
+  document.getElementById('exportBtn').onclick = ()=>{
+    const blob = new Blob([JSON.stringify(DB, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob); const a = document.createElement('a');
+    a.href=url; a.download='barmed_lcms_export.json'; a.click(); URL.revokeObjectURL(url);
+  };
+  document.getElementById('importInput').addEventListener('change', (e)=>{
+    const f = e.target.files[0]; if(!f) return;
+    const reader = new FileReader();
+    reader.onload = () => { try{ DB = JSON.parse(reader.result); save(); alert('Imported'); renderView('dashboard'); } catch{ alert('Invalid JSON'); } };
+    reader.readAsText(f);
+  });
+  document.getElementById('resetBtn').onclick = ()=>{
+    if(!confirm('This will erase all data saved in your browser for this demo. Continue?')) return;
+    DB = defaultData(); save(); renderView('dashboard');
+  };
+
+  // Test runner (adds basic smoke tests)
+  document.getElementById('runTestsBtn').onclick = runTests;
+  function runTests(){
+    const results = [];
+    function pass(name){ results.push({name, ok:true}); }
+    function fail(name, e){ results.push({name, ok:false, e:String(e)}); }
+
+    try {
+      // Test 1: DB shape
+      if(DB && Array.isArray(DB.clients) && Array.isArray(DB.cases)) pass('DB shape'); else throw new Error('Bad DB shape');
+    } catch(e){ fail('DB shape', e); }
+
+    try {
+      // Test 2: upsert client via saveClient logic (no duplicate)
+      const before = DB.clients.length;
+      const temp = { id: uid('client'), name:'Test User', email:'t@ex.com', phone:'', dni:'X', passport:'', rtn:'R', address:'A' };
+      const i1 = DB.clients.findIndex(c=>c.id===temp.id); if(i1>-1) DB.clients[i1]=temp; else DB.clients.push(temp);
+      const afterCreate = DB.clients.length;
+      const i2 = DB.clients.findIndex(c=>c.id===temp.id); if(i2>-1) DB.clients[i2]={...temp, phone:'222'}; else DB.clients.push({...temp, phone:'222'});
+      const afterUpdate = DB.clients.length;
+      if(afterCreate===before+1 && afterUpdate===afterCreate) pass('Client upsert (create & update)'); else throw new Error('Unexpected client counts');
+    } catch(e){ fail('Client upsert (create & update)', e); }
+
+    try {
+      // Test 2b: DNI formatting & validation
+      if(
+        formatDNI('080119900000')==='0801 1990 0000' &&
+        isValidDNI('0801 1990 0000') &&
+        !isValidDNI('0801-1990-0000') &&
+        !isValidDNI('0801 1990 000')
+      ) pass('DNI format & validate'); else throw new Error('DNI rules failed');
+    } catch(e){ fail('DNI format & validate', e); }
+
+    try {
+      // Test 2c: RTN normalization & validation
+      if(
+        normalizeRTN(' 0801 1990 00001 ')==='0801199000001' &&
+        isValidRTN('0801199000001') &&
+        !isValidRTN('0801 1990 00001') &&
+        !isValidRTN('080119900000')
+      ) pass('RTN normalize & validate'); else throw new Error('RTN rules failed');
+    } catch(e){ fail('RTN normalize & validate', e); }
+
+    try {
+      // Test 3: create case and add time entry
+      const cl = DB.clients[0] || { id: uid('client'), name:'Temp' };
+      if(!DB.clients.find(c=>c.id===cl.id)) DB.clients.push(cl);
+      const caseId = uid('case');
+      DB.cases.push({ id: caseId, title:'Test Case', clientId: cl.id, status:'Open', practiceArea:'Test', createdAt: nowISO(), timeEntries:[], invoices:[], tasks:[] });
+      const c = DB.cases.find(x=>x.id===caseId);
+      c.timeEntries.push({ at: nowISO(), hours: 1.5, rate: DB.settings.hourlyRate, desc:'Unit test work' });
+      const hours = totalHoursCase(caseId);
+      if(Math.abs(hours-1.5) < 1e-9) pass('Time entry totals'); else throw new Error('Wrong hour total');
+    } catch(e){ fail('Time entry totals', e); }
+
+    try {
+      // Test 4: invoice generation
+      const c = DB.cases.find(x=>x.timeEntries && x.timeEntries.length>0);
+      const before = (c.invoices||[]).length;
+      const lines = c.timeEntries.map(t=>({ label: t.desc||'Time', qty: t.hours, rate: t.rate||DB.settings.hourlyRate }));
+      const subtotal = lines.reduce((a,l)=>a+l.qty*l.rate,0);
+      const tax = subtotal * (DB.settings.taxPercent/100);
+      const total = subtotal + tax;
+      c.invoices = c.invoices||[]; c.invoices.push({ id: uid('inv'), at: nowISO(), lines, subtotal, tax, total, paid:false });
+      const after = c.invoices.length;
+      if(after===before+1) pass('Invoice generation'); else throw new Error('Invoice not added');
+    } catch(e){ fail('Invoice generation', e); }
+
+    const modal = el(`<div class="fixed inset-0 bg-black/40 grid place-items-center p-4">
+      <div class="card p-5 w-full max-w-xl">
+        <h3 class="font-semibold mb-2">Test Results</h3>
+        <ul class="space-y-1 text-sm">${results.map(r=>`<li>${r.ok?'✅':'❌'} ${r.name}${r.ok?'':` — ${r.e}`}</li>`).join('')}</ul>
+        <div class="mt-4 flex justify-end"><button class="btn" onclick="this.closest('.fixed').remove()">Close</button></div>
+      </div>
+    </div>`);
+    document.body.appendChild(modal);
+  }
+
+  // ==========================
+  // Quick Actions
+  // ==========================
+  document.getElementById('quickNewCase').onclick = ()=>openCaseForm();
+  document.getElementById('quickNewClient').onclick = ()=>openClientForm();
+
+  // ==========================
+  // Initial Demo Data (only on first run)
+  // ==========================
+  if(!localStorage.getItem(LS_KEY)){
+    DB = defaultData();
+    // seed clients (with DNI/Passport/RTN/Address)
+    const cl1 = { id: uid('client'), name:'Angel Flores', email:'angel@example.com', phone:'+504 9999-9999', dni:'0801 1990 0000', passport:'HN1234567', rtn:'0801199000001', address:'Col. Palmira, Tegucigalpa' };
+    const cl2 = { id: uid('client'), name:'Glenda Urbina', email:'glenda@example.com', phone:'', dni:'0801 1985 1111', passport:'', rtn:'0801198511111', address:'Res. Las Uvas, Tegucigalpa' };
+    DB.clients.push(cl1, cl2);
+    // seed cases
+    const cs1 = { id: uid('case'), title:'Administrative Claim vs State', clientId: cl1.id, status:'Open', practiceArea:'Contencioso Administrativo', dueDate:'', description:'Draft complaint and file', createdAt: nowISO(), timeEntries:[], invoices:[], tasks:[] };
+    const cs2 = { id: uid('case'), title:'Trademark Registration – BARMED®', clientId: cl2.id, status:'Pending', practiceArea:'IP', dueDate:'', description:'Classes 35, 36, 45', createdAt: nowISO(), timeEntries:[], invoices:[], tasks:[] };
+    DB.cases.push(cs1, cs2);
+    // seed messages
+    DB.portalMessages.push({ id: uid('msg'), caseId: cs1.id, from:'client', body:'Can we have an update?', at: nowISO() });
+    save();
+  }
+
+  // Kick off
+  renderView((location.hash||'#dashboard').replace('#',''));
+  // highlight active
+  const active = location.hash.replace('#','')||'dashboard';
+  const btn = nav.querySelector(`button[data-view="${active}"]`); if(btn) btn.classList.add('bg-sky-100');
+  </script>
+</body>
+</html>
