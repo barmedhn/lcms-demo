@@ -10,9 +10,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <style>body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}</style>
+  <style>
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    #errbar{display:none}
+  </style>
 </head>
 <body class="bg-gray-50">
+  <div id="errbar" class="fixed top-0 left-0 right-0 z-[9999] bg-red-600 text-white px-4 py-2 text-sm"></div>
+
   <div class="min-h-full">
     <header class="sticky top-0 z-20 border-b border-gray-200 bg-white/80 backdrop-blur">
       <div class="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8 flex items-center gap-4">
@@ -62,336 +67,57 @@
   </div>
 
   <script>
-  const LS_KEY='barmed_lcms_v1'; const nowISO=()=>new Date().toISOString(); const uid=(p='id')=>p+'_'+Math.random().toString(36).slice(2,9);
-  const defaultData=()=>({settings:{hourlyRate:100,currency:'USD',firmName:'BARMED®',taxPercent:0,locale:'es-HN'},clients:[],cases:[],documents:[],portalMessages:[]});
-  let DB=load();
-  function load(){ try{ const raw=localStorage.getItem(LS_KEY); return raw?JSON.parse(raw):defaultData(); }catch(e){ return defaultData(); } }
-  function save(){ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }
+  window.addEventListener('error', function (e) {
+    var bar = document.getElementById('errbar');
+    bar.textContent = 'JS error: ' + (e && e.message ? e.message : 'unknown');
+    bar.style.display = 'block';
+  });
 
-  function formatMoney(n){ try{ return new Intl.NumberFormat(DB.settings.locale||'es-HN',{style:'currency',currency:DB.settings.currency||'USD'}).format(n||0);}catch{ return ((DB.settings.currency||'USD')+' '+(n||0).toFixed(2)); } }
-  function el(h){ const t=document.createElement('template'); t.innerHTML=h.trim(); return t.content.firstElementChild; }
-  function pill(s){ const c={Open:'bg-emerald-100 text-emerald-800',Pending:'bg-amber-100 text-amber-800',Closed:'bg-gray-200 text-gray-700',OnHold:'bg-violet-100 text-violet-800'}[s]||'bg-gray-100 text-gray-700'; return `<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${c}">${s}</span>`; }
-  function formatDNI(raw){ const d=String(raw||'').replace(/\\D/g,'').slice(0,12); const parts=[d.slice(0,4),d.slice(4,8),d.slice(8,12)].filter(Boolean); return parts.join(' '); }
-  function isValidDNI(s){ return /^\\d{4}\\s\\d{4}\\s\\d{4}$/.test(String(s||'')); }
-  function normalizeRTN(raw){ return String(raw||'').replace(/\\D/g,'').slice(0,13); }
-  function isValidRTN(s){ return /^\\d{13}$/.test(String(s||'')); }
-  document.addEventListener('input', (e)=>{ if(e.target){ if(e.target.id==='clDNI') e.target.value=formatDNI(e.target.value); if(e.target.id==='clRTN') e.target.value=normalizeRTN(e.target.value);} });
+  window.addEventListener('DOMContentLoaded', function () {
+    try {
+      const LS_KEY='barmed_lcms_v1'; const nowISO=()=>new Date().toISOString(); const uid=(p='id')=>p+'_'+Math.random().toString(36).slice(2,9);
+      const defaultData=()=>({settings:{hourlyRate:100,currency:'USD',firmName:'BARMED®',taxPercent:0,locale:'es-HN'},clients:[],cases:[],documents:[],portalMessages:[]});
+      let DB=load();
+      function load(){ try{ const raw=localStorage.getItem(LS_KEY); return raw?JSON.parse(raw):defaultData(); }catch(e){ return defaultData(); } }
+      function save(){ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }
 
-  const content=document.getElementById('content');
-  const routes={
-    dashboard(){ const open=DB.cases.filter(c=>c.status!=='Closed').length; const h=totalHoursAll(); const r=totalBilledAll(); const latest=DB.cases.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,5);
-      content.innerHTML=`
-      <div class="grid md:grid-cols-3 gap-4">
-        <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-5"><div class="text-sm text-gray-500">Open Cases</div><div class="text-3xl font-extrabold">${open}</div></div>
-        <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-5"><div class="text-sm text-gray-500">Tracked Hours</div><div class="text-3xl font-extrabold">${h.toFixed(2)} h</div></div>
-        <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-5"><div class="text-sm text-gray-500">Billed (lifetime)</div><div class="text-3xl font-extrabold">${formatMoney(r)}</div></div>
-      </div>
-      <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-5">
-        <div class="flex items-center justify-between"><h2 class="text-lg font-semibold">Recent Cases</h2><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 bg-sky-600 text-white" onclick="openCaseForm()">New Case</button></div>
-        <div class="mt-4 overflow-x-auto">
-          <table class="min-w-full border-separate border-spacing-y-2">
-            <thead><tr class="text-left text-xs text-gray-500"><th class="px-2">Title</th><th class="px-2">Client</th><th class="px-2">Status</th><th class="px-2">Opened</th><th class="px-2">Hours</th><th class="px-2"></th></tr></thead>
-            <tbody>${latest.map(c=>`<tr class="bg-white"><td class="px-2 py-2 font-medium">${c.title}</td><td class="px-2">${clientName(c.clientId)}</td><td class="px-2">${pill(c.status)}</td><td class="px-2 text-sm text-gray-500">${new Date(c.createdAt).toLocaleDateString()}</td><td class="px-2">${totalHoursCase(c.id).toFixed(2)}</td><td class="px-2"><button class="text-sky-700 underline" onclick="openCase('${c.id}')">Open</button></td></tr>`).join('')}</tbody>
-          </table>
-        </div>
-      </div>`; renderReportMini(); },
-    cases(){ const rows=DB.cases.slice().sort((a,b)=>a.status.localeCompare(b.status)).map(c=>`<tr class="bg-white"><td class="px-2 py-2 font-medium">${c.title}</td><td class="px-2">${clientName(c.clientId)}</td><td class="px-2">${pill(c.status)}</td><td class="px-2">${c.practiceArea||'-'}</td><td class="px-2">${totalHoursCase(c.id).toFixed(2)}</td><td class="px-2">${formatMoney(totalBilledCase(c.id))}</td><td class="px-2"><button class="text-sky-700 underline" onclick="openCase('${c.id}')">Open</button></td></tr>`).join('');
-      content.innerHTML=`
-      <div class="flex items-center justify-between"><h2 class="text-lg font-semibold">Cases</h2><div class="flex gap-2"><input id="caseSearch" class="w-60 rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Search…"/><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 bg-sky-600 text-white" onclick="openCaseForm()">New Case</button></div></div>
-      <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4 mt-3 overflow-x-auto">
-        <table class="min-w-full border-separate border-spacing-y-2">
-          <thead><tr class="text-left text-xs text-gray-500"><th class="px-2">Title</th><th class="px-2">Client</th><th class="px-2">Status</th><th class="px-2">Practice</th><th class="px-2">Hours</th><th class="px-2">Billed</th><th class="px-2"></th></tr></thead>
-          <tbody id="caseRows">${rows}</tbody>
-        </table>
-      </div>`; document.getElementById('caseSearch').addEventListener('input',e=>filterCases(e.target.value)); },
-    documents(){ content.innerHTML=`
-      <div class="flex items-center justify-between"><h2 class="text-lg font-semibold">Documents (metadata only)</h2><label class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 bg-sky-600 text-white cursor-pointer">Attach Document<input id="docAttach" type="file" class="sr-only"/></label></div>
-      <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4 mt-3 overflow-x-auto">
-        <table class="min-w-full border-separate border-spacing-y-2">
-          <thead><tr class="text-left text-xs text-gray-500"><th class="px-2">Name</th><th class="px-2">Type</th><th class="px-2">Size</th><th class="px-2">Case</th><th class="px-2">Added</th></tr></thead>
-          <tbody id="docRows">${DB.documents.map(d=>`<tr class="bg-white"><td class="px-2 py-2">${d.name}</td><td class="px-2">${d.kind||'-'}</td><td class="px-2">${(d.size/1024).toFixed(1)} KB</td><td class="px-2">${caseTitle(d.caseId)||'-'}</td><td class="px-2 text-sm text-gray-500">${new Date(d.addedAt).toLocaleString()}</td></tr>`).join('')}</tbody>
-        </table>
-      </div>`; document.getElementById('docAttach').addEventListener('change',onAttachDoc); },
-    time(){ content.innerHTML=`
-      <div class="flex items-center justify-between"><h2 class="text-lg font-semibold">Time & Billing</h2><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 bg-sky-600 text-white" onclick="openTimer()">Start Timer</button></div>
-      <div class="grid md:grid-cols-2 gap-4 mt-4">
-        <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4"><h3 class="font-semibold">Time Entries</h3><div id="timeList" class="mt-2 space-y-2">${renderTimeEntries()}</div></div>
-        <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4"><h3 class="font-semibold">Invoices</h3><div id="invoiceList" class="mt-2 space-y-2">${renderInvoices()}</div><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 mt-3" onclick="generateInvoice()">Generate Invoice (selected case)</button></div>
-      </div>`; },
-    clients(){ content.innerHTML=`
-      <div class="flex items-center justify-between"><h2 class="text-lg font-semibold">Clients & Portal</h2><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 bg-sky-600 text-white" onclick="openClientForm()">New Client</button></div>
-      <div class="grid md:grid-cols-2 gap-4 mt-4">
-        <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4"><h3 class="font-semibold">Clients</h3><div id="clientList" class="mt-3 space-y-2">${DB.clients.map(renderClientCard).join('')}</div></div>
-        <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4"><h3 class="font-semibold">Portal Messages</h3><div class="text-xs text-gray-500">Simulated secure messages per case</div><div id="portalList" class="mt-3 space-y-2">${renderPortal()}</div></div>
-      </div>`; },
-    workflows(){ content.innerHTML=`
-      <div class="flex items-center justify-between"><h2 class="text-lg font-semibold">Automated Workflows</h2><div class="text-sm text-gray-500">Apply templates to a case</div></div>
-      <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4 mt-4">
-        <div class="grid md:grid-cols-2 gap-4">
-          ${workflowTemplates().map(t=>`<div class="rounded-xl border p-4"><div class="font-semibold">${t.name}</div><div class="text-sm text-gray-500">${t.desc}</div><div class="mt-3 flex gap-2 items-center"><select class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" id="sel_${t.key}"><option value="">Select case…</option>${DB.cases.map(c=>`<option value="${c.id}">${c.title}</option>`).join('')}</select><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 bg-sky-600 text-white" onclick="applyWorkflow('${t.key}')">Apply</button></div></div>`).join('')}
-        </div>
-      </div>`; },
-    reports(){ content.innerHTML=`
-      <div class="flex items-center justify-between"><h2 class="text-lg font-semibold">Reports</h2><div class="text-sm text-gray-500">Hours & revenue by case and status</div></div>
-      <div class="grid md:grid-cols-2 gap-4 mt-4">
-        <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4"><canvas id="hoursByCase"></canvas></div>
-        <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4"><canvas id="revenueByCase"></canvas></div>
-        <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4 md:col-span-2"><canvas id="statusBreakdown"></canvas></div>
-      </div>`; setTimeout(renderFullReports,0); },
-    proposals(){
-      const today=new Date(); const y=today.getFullYear(); const m=String(today.getMonth()+1).padStart(2,'0'); const d=String(today.getDate()).padStart(2,'0'); const ymd=`${y}${m}${d}`;
-      const clients=DB.clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-      content.innerHTML=`
-      <div class="flex items-center justify-between"><h2 class="text-lg font-semibold">Propuestas</h2><div class="flex gap-2"><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5" id="btnAddExtClient">Cliente externo</button><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 bg-sky-600 text-white" id="btnPreview">Previsualizar</button></div></div>
-      <div class="grid lg:grid-cols-3 gap-4 mt-4">
-        <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4 lg:col-span-2">
-          <div class="grid grid-cols-3 gap-3">
-            <label class="text-xs font-medium text-gray-600">Cliente</label>
-            <div class="col-span-2 flex gap-2">
-              <select id="pClient" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500"><option value="">Seleccione…</option>${clients}</select>
-              <input id="pExtClient" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 hidden" placeholder="Nombre de cliente externo">
-            </div>
-            <label class="text-xs font-medium text-gray-600">Usuario propuesto</label>
-            <input id="pUsername" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2" placeholder="auto (de nombre)">
-            <label class="text-xs font-medium text-gray-600">Zona horaria del cliente</label>
-            <select id="pTZ" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2">${Intl.supportedValuesOf? Intl.supportedValuesOf('timeZone').map(tz=>`<option>${tz}</option>`).join('') : '<option>America/Tegucigalpa</option><option>America/Lima</option>'}</select>
-            <label class="text-xs font-medium text-gray-600">Asunto</label>
-            <input id="pAsunto" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2" placeholder="Asunto de la propuesta">
-            <label class="text-xs font-medium text-gray-600">Área de práctica</label>
-            <input id="pPractice" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2" placeholder="p.ej., Administrativo, Civil, IP">
-            <label class="text-xs font-medium text-gray-600">Descripción breve del servicio</label>
-            <textarea id="pServiceDesc" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2" rows="2" placeholder="Descripción completa del servicio ofrecido"></textarea>
-            <label class="text-xs font-medium text-gray-600">Validez hasta (fecha y hora de Tegucigalpa)</label>
-            <input id="pValid" type="datetime-local" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2">
-            <label class="text-xs font-medium text-gray-600">Versión</label>
-            <input id="pVersion" type="number" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2" value="1" min="1">
-            <div class="col-span-3 pt-2 border-t">
-              <div class="font-semibold mb-2">Estructura de pago</div>
-              <div id="payLines" class="space-y-2"></div>
-              <button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 mt-2" id="addPay">Añadir línea (A, B, C…)</button>
-            </div>
-            <div class="col-span-3 pt-2 border-t">
-              <div class="font-semibold mb-2">Documentos requeridos (marcar con "x")</div>
-              <div class="grid grid-cols-2 gap-2">
-                <label><input type="checkbox" class="mr-2" id="docDNI"> Documento Nacional de Identificación</label>
-                <label><input type="checkbox" class="mr-2" id="docRTN"> Registro Tributario Nacional</label>
-                <label><input type="checkbox" class="mr-2" id="docEscrituras"> Escrituras Públicas</label>
-                <label><input type="checkbox" class="mr-2" id="docNacimiento"> Certificación de actas de nacimiento</label>
-                <label class="col-span-2"><input type="checkbox" class="mr-2" id="docOtros"> Otros documentos</label>
-              </div>
-              <label class="text-xs font-medium text-gray-600 mt-2">Notas / recordatorios</label>
-              <textarea id="pNotes" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" rows="2" placeholder="Mensaje del abogado, notas especiales o recordatorios"></textarea>
-            </div>
-          </div>
-        </div>
-        <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">
-          <div class="text-sm text-gray-500">Archivo / QR</div>
-          <div class="mt-2">Nombre sugerido:</div>
-          <div id="pFilename" class="font-mono text-sm break-all">PROPUESTA_${ymd}.xxxxx.username.1</div>
-          <div id="qrcode" class="mt-3 grid place-items-center"></div>
-          <button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 mt-3" id="btnDownload">Descargar propuesta (HTML)</button>
-        </div>
-      </div>`;
-      const payLines=document.getElementById('payLines'); let payCount=0; function letter(n){return String.fromCharCode('A'.charCodeAt(0)+n);}
-      function addPayLine(){ const L=letter(payCount++); const row=document.createElement('div'); row.className='rounded-xl border p-3 space-y-2'; row.innerHTML=`
-        <div class="font-medium">Línea ${L}</div>
-        <div class="grid grid-cols-3 gap-2">
-          <label class="text-xs font-medium text-gray-600">Descripción</label>
-          <input class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2" id="desc_${L}" placeholder="Servicio / concepto">
-          <label class="text-xs font-medium text-gray-600">Monto total</label>
-          <input class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2" id="amount_${L}" type="number" step="0.01" placeholder="0.00">
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <div class="text-xs font-medium text-gray-600">Pago 1 (%)</div>
-            <input class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" id="p1_${L}" type="number" min="0" max="100" value="100">
-            <select class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 mt-1" id="s1_${L}"><option>INICIAL</option><option>FINAL</option></select>
-          </div>
-          <div>
-            <div class="text-xs font-medium text-gray-600">Pago 2 (%) (opcional)</div>
-            <input class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" id="p2_${L}" type="number" min="0" max="100" value="0">
-            <select class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 mt-1" id="s2_${L}"><option>INICIAL</option><option>FINAL</option></select>
-          </div>
-        </div>`; payLines.appendChild(row); }
-      document.getElementById('addPay').onclick=addPayLine; addPayLine();
-      const pClient=document.getElementById('pClient'); const pExt=document.getElementById('pExtClient');
-      document.getElementById('btnAddExtClient').onclick=()=>{ pClient.classList.toggle('hidden'); pExt.classList.toggle('hidden'); };
-      function toUsername(name){ return (name||'').normalize('NFD').replace(/\\p{Diacritic}/gu,'').toLowerCase().replace(/[^a-z0-9]+/g,'.').replace(/^\\.|\\.$/g,''); }
-      function updateUsername(){ const name=pExt.classList.contains('hidden')?(DB.clients.find(c=>c.id===pClient.value)||{}).name:pExt.value; document.getElementById('pUsername').value=toUsername(name||''); updateQR(); }
-      pClient.onchange=updateUsername; pExt.oninput=updateUsername;
-      const valid=document.getElementById('pValid'); const base=new Date(); base.setDate(base.getDate()+7); base.setHours(18,0,0,0); valid.value=new Date(base.getTime()-base.getTimezoneOffset()*60000).toISOString().slice(0,16);
-      function serialFromMonth(date){ const mon=date.getMonth()+1; const suffix=Math.floor(Math.random()*900)+100; return String(mon).padStart(2,'0')+String(suffix); }
-      function updateQR(){ const dt=new Date(valid.value||Date.now()); const y=dt.getFullYear(); const m=String(dt.getMonth()+1).padStart(2,'0'); const d=String(dt.getDate()).padStart(2,'0'); const serial=serialFromMonth(dt); const user=document.getElementById('pUsername').value||'usuario'; const version=document.getElementById('pVersion').value||'1'; const fname=`PROPUESTA_${y}${m}${d}.${serial}.${user}.${version}`; document.getElementById('pFilename').textContent=fname; const payload=`Propuesta_${y}/${m}/${d}.${serial}.${user}.${version}`; const qdiv=document.getElementById('qrcode'); qdiv.innerHTML=''; new QRCode(qdiv,{text:payload,width:160,height:160}); }
-      updateQR(); document.getElementById('pVersion').oninput=updateQR; document.getElementById('pUsername').oninput=updateQR; valid.oninput=updateQR;
-      document.getElementById('btnPreview').onclick=()=>{ const html=buildProposalHTML(); const w=window.open('about:blank'); w.document.write(html); w.document.close(); };
-      document.getElementById('btnDownload').onclick=()=>{ const html=buildProposalHTML(); const blob=new Blob([html],{type:'text/html'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(document.getElementById('pFilename').textContent||'propuesta')+'.html'; a.click(); };
-      function collectPayments(){ const lines=[]; for(let i=0;i<payCount;i++){ const L=letter(i); const desc=document.getElementById(`desc_${L}`).value; const amount=parseFloat(document.getElementById(`amount_${L}`).value||'0'); const p1=parseFloat(document.getElementById(`p1_${L}`).value||'0'); const s1=document.getElementById(`s1_${L}`).value; const p2=parseFloat(document.getElementById(`p2_${L}`).value||'0'); const s2=document.getElementById(`s2_${L}`).value; lines.push({L,desc,amount,parts:[{pct:p1,stage:s1},{pct:p2,stage:s2}]}); } return lines; }
-      function tzTime(date,tz){ return new Intl.DateTimeFormat('es-HN',{dateStyle:'full', timeStyle:'short', timeZone:tz}).format(date); }
-      function buildProposalHTML(){
-        const clientName=pExt.classList.contains('hidden')?(DB.clients.find(c=>c.id===pClient.value)||{}).name:pExt.value;
-        const username=document.getElementById('pUsername').value||'usuario'; const asunto=document.getElementById('pAsunto').value||''; const practice=document.getElementById('pPractice').value||''; const desc=document.getElementById('pServiceDesc').value||''; const notes=document.getElementById('pNotes').value||''; const validDt=new Date(document.getElementById('pValid').value||Date.now()); const tzClient=document.getElementById('pTZ').value||'America/Tegucigalpa'; const filename=document.getElementById('pFilename').textContent;
-        const payments=collectPayments();
-        const docsX={DNI:document.getElementById('docDNI').checked,RTN:document.getElementById('docRTN').checked,Escrituras:document.getElementById('docEscrituras').checked,Nacimiento:document.getElementById('docNacimiento').checked,Otros:document.getElementById('docOtros').checked};
-        const qcanvas=document.querySelector('#qrcode canvas'); const qimg=qcanvas? qcanvas.toDataURL('image/png'):'';
-        const tegu=tzTime(validDt,'America/Tegucigalpa'); const clientZ=tzTime(validDt,tzClient);
-        const payRows=payments.map(p=>{ const parts=p.parts.filter(x=>x.pct>0).map((x,i)=>`<div>${i?'Pago 2':'Pago 1'}: <b>${x.pct}%</b> — <b>${x.stage}</b></div>`).join(''); return `<tr><td><b>${p.L}</b></td><td>${p.desc||'-'}</td><td style="text-align:right">${formatMoney(p.amount||0)}</td><td>${parts||'-'}</td></tr>`; }).join('');
-        return `<!doctype html><html><head><meta charset='utf-8'><title>${filename}</title>
-        <style>body{font-family:Inter,Arial; padding:24px; line-height:1.45} h1,h2{margin:0 0 8px 0} table{width:100%; border-collapse:collapse} td,th{border:1px solid #ccc; padding:8px} .muted{color:#666} .small{font-size:12px}</style>
-        </head><body>
-        <div style="display:flex; align-items:center; gap:16px;">
-          <div><h1>Barahona Medina & Asociados — BARMED®</h1><div class="muted small">Propuesta (demo) — ${filename}</div><div class="muted small">Cliente: ${clientName||'(sin nombre)'} — Usuario: ${username}</div></div>
-          <div style="margin-left:auto"><img src="${qimg}" width="120" height="120" alt="QR"/></div>
-        </div>
-        <h2 style="margin-top:16px">Asunto</h2><p><b>${asunto||'(sin asunto)'}</b></p>
-        <p>El Consorcio Legal Barahona Medina & Asociados, BARMED®, por mi conducto y en mi calidad de Director de Servicios, tiene el agrado de presentar la Propuesta Formal de Acuerdo de Servicios Profesionales en el área de práctica <b>${practice||'—'}</b>, ${desc||'servicio a describir detalladamente.'}</p>
-        <h2>Descripción de servicios</h2><p>Los servicios se detallan conforme al listado de honorarios del abogado (Attorney's Fee list). Esta sección debe enlazarse con los conceptos y tarifas aplicables que se definirán más adelante.</p>
-        <h2>Estructura de pago</h2><table><thead><tr><th>Literal</th><th>Descripción</th><th>Monto</th><th>Desglose (máx. 2 pagos)</th></tr></thead><tbody>${payRows}</tbody></table>
-        <h2>Fechas sugeridas</h2><p>Proponga aquí las fechas tentativas para las actuaciones del proceso (por ejemplo, presentación, personamiento, audiencias, etc.).</p>
-        <h2>Documentos requeridos (marque con "x")</h2><ul>
-          <li>${docsX.DNI?'[x]':'[ ]'} Documento Nacional de Identificación</li>
-          <li>${docsX.RTN?'[x]':'[ ]'} Registro Tributario Nacional</li>
-          <li>${docsX.Escrituras?'[x]':'[ ]'} Escrituras Públicas</li>
-          <li>${docsX.Nacimiento?'[x]':'[ ]'} Certificación de actas de nacimiento</li>
-          <li>${docsX.Otros?'[x]':'[ ]'} Otros documentos</li>
-        </ul>
-        <p><b>Notas:</b> ${notes||'—'}</p>
-        <h2>Vigencia</h2><p>La presente propuesta es válida hasta <b>${tegu}</b> (hora de Tegucigalpa) <b>${clientZ}</b> (hora del cliente). La programación del servicio podría ajustarse por razones de agenda, tiempos de decisión del cliente o eventos de caso fortuito o fuerza mayor. Para aceptar los servicios descritos, basta con responder manifestando su elección y conformidad al correo electrónico: <a href="mailto:contacto@barmed.hn">contacto@barmed.hn</a>.</p>
-        <h2>Pago</h2><p>Puede realizar el pago mediante depósito a la cuenta <b>2 1 - 4 4 3 - 0 0 0 3 0 5 - 9</b> de <b>Banco de Occidente</b>. (Opcionalmente puede añadirse un enlace de pago por PayPal de BARMED.)</p>
-        <hr style="margin:24px 0"><div class="small muted">Este documento fue generado a partir del formato de propuesta de BARMED y mantiene la estructura general del template proporcionado.</div>
-        </body></html>`;
-      }
+      function el(h){ const t=document.createElement('template'); t.innerHTML=h.trim(); return t.content.firstElementChild; }
+      function renderReportMini(){ const content=document.getElementById('content'); const container=el(`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4 mt-4"><canvas id="mini"></canvas></div>`); content.appendChild(container); try{ if(window.Chart){ const ctx=document.getElementById('mini'); new Chart(ctx,{type:'bar',data:{labels:['A','B'],datasets:[{label:'Demo',data:[1,2]}]},options:{plugins:{legend:{display:false}}}});} }catch(err){ /* ignore */ } }
+
+      const routes={
+        dashboard(){ const content=document.getElementById('content'); content.innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-5">Dashboard ready</div>`; renderReportMini(); },
+        cases(){ document.getElementById('content').innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">Cases here</div>`; },
+        documents(){ document.getElementById('content').innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">Docs here</div>`; },
+        time(){ document.getElementById('content').innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">Time here</div>`; },
+        clients(){ document.getElementById('content').innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">Clients here</div>`; },
+        workflows(){ document.getElementById('content').innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">Workflows here</div>`; },
+        reports(){ document.getElementById('content').innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">Reports here</div>`; },
+        proposals(){ document.getElementById('content').innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">Proposals here</div>`; },
+        settings(){ const c=document.getElementById('content'); c.innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4"><div class="text-sm">Settings</div><input id="sFirm" class="rounded-xl border px-3 py-2 mt-2" value="${DB.settings.firmName}"><button id="btnSaveSettings" class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 mt-3">Save</button></div>`; document.getElementById('btnSaveSettings').onclick=function(){ DB.settings.firmName=document.getElementById('sFirm').value||'BARMED®'; save(); alert('Saved'); }; }
+      };
+
+      const nav=document.getElementById('nav');
+      nav.addEventListener('click', (e)=>{ if(e.target.matches('button[data-view]')){ const v=e.target.getAttribute('data-view'); renderView(v); [...nav.querySelectorAll('button')].forEach(b=>b.classList.remove('bg-sky-100')); e.target.classList.add('bg-sky-100'); }});
+      function renderView(v){ window.location.hash=v; (routes[v]||routes.dashboard)(); }
+      window.addEventListener('hashchange', ()=>{ const v=location.hash.replace('#','')||'dashboard'; renderView(v); });
+
+      document.getElementById('runTestsBtn').onclick=function(){ alert('Events wired. If you see this, buttons work.'); };
+      document.getElementById('exportBtn').onclick=function(){ alert('Export clicked'); };
+      document.getElementById('importInput').addEventListener('change', function(){ alert('Import selected'); });
+      document.getElementById('resetBtn').onclick=function(){ if(confirm('Reset demo data?')){ DB=defaultData(); save(); renderView('dashboard'); } };
+
+      document.getElementById('quickNewCase').onclick=function(){ renderView('cases'); };
+      document.getElementById('quickNewClient').onclick=function(){ renderView('clients'); };
+
+      if(!localStorage.getItem(LS_KEY)){ DB=defaultData(); save(); }
+
+      const initial=(location.hash||'#dashboard').replace('#',''); renderView(initial); const btn=nav.querySelector(`button[data-view="${initial||'dashboard'}"]`); if(btn) btn.classList.add('bg-sky-100');
+    } catch (e) {
+      var bar = document.getElementById('errbar');
+      bar.textContent = 'Init error: ' + e.message;
+      bar.style.display = 'block';
     }
-  };
-
-  const nav=document.getElementById('nav');
-  nav.addEventListener('click', (e)=>{ if(e.target.matches('button[data-view]')){ const v=e.target.getAttribute('data-view'); renderView(v); [...nav.querySelectorAll('button')].forEach(b=>b.classList.remove('bg-sky-100')); e.target.classList.add('bg-sky-100'); }});
-  function renderView(v){ window.location.hash=v; (routes[v]||routes.dashboard)(); }
-  window.addEventListener('hashchange', ()=>{ const v=location.hash.replace('#','')||'dashboard'; renderView(v); });
-
-  function clientName(id){ return (DB.clients.find(c=>c.id===id)||{}).name || '-'; }
-  function caseTitle(id){ return (DB.cases.find(c=>c.id===id)||{}).title || ''; }
-
-  function openCaseForm(caseId){ const existing=DB.cases.find(x=>x.id===caseId); const c=existing||{ id:'', title:'', clientId:'', status:'Open', practiceArea:'', dueDate:'', description:'', createdAt: nowISO(), timeEntries:[], invoices:[], tasks:[] }; const isEdit=!!existing;
-    const html=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-5">
-      <div class="flex items-center justify-between"><h2 class="text-lg font-semibold">${isEdit?'Edit':'New'} Case</h2>${isEdit?`<button class="text-red-600" onclick="deleteCase('${c.id}')">Delete</button>`:''}</div>
-      <div class="grid md:grid-cols-2 gap-3 mt-4">
-        <label class="text-xs font-medium text-gray-600">Title</label><input id="fTitle" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" value="${c.title}">
-        <label class="text-xs font-medium text-gray-600">Client</label><select id="fClient" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500">${['<option value="">Select…</option>',...DB.clients.map(cl=>`<option value="${cl.id}" ${cl.id===c.clientId?'selected':''}>${cl.name}</option>`)].join('')}</select>
-        <label class="text-xs font-medium text-gray-600">Status</label><select id="fStatus" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500">${['Open','Pending','OnHold','Closed'].map(s=>`<option ${s===c.status?'selected':''}>${s}</option>`).join('')}</select>
-        <label class="text-xs font-medium text-gray-600">Practice Area</label><input id="fPA" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" value="${c.practiceArea||''}">
-        <label class="text-xs font-medium text-gray-600">Due Date</label><input id="fDue" type="date" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" value="${c.dueDate||''}">
-        <label class="text-xs font-medium text-gray-600">Description</label><textarea id="fDesc" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 md:col-span-1" rows="3">${c.description||''}</textarea>
-      </div>
-      <div class="mt-4 flex gap-2"><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 bg-sky-600 text-white" onclick="saveCase('${c.id||''}')">Save</button><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5" onclick="routes.cases()">Cancel</button></div></div>`;
-    content.innerHTML=html;
-  }
-  function saveCase(id){ const title=document.getElementById('fTitle').value.trim(); if(!title) return alert('Title required');
-    const existing=DB.cases.find(c=>c.id===id);
-    const rec={ id:id||uid('case'), title, clientId:document.getElementById('fClient').value||'', status:document.getElementById('fStatus').value, practiceArea:document.getElementById('fPA').value, dueDate:document.getElementById('fDue').value, description:document.getElementById('fDesc').value, createdAt: existing?existing.createdAt:nowISO(), timeEntries: existing?existing.timeEntries:[], invoices: existing?existing.invoices:[], tasks: existing?existing.tasks:[] };
-    const idx=DB.cases.findIndex(c=>c.id===rec.id); if(idx>-1) DB.cases[idx]=rec; else DB.cases.push(rec); save(); routes.cases();
-  }
-  function deleteCase(id){ if(!confirm('Delete this case?')) return; DB.cases=DB.cases.filter(c=>c.id!==id); DB.documents=DB.documents.filter(d=>d.caseId!==id); DB.portalMessages=DB.portalMessages.filter(m=>m.caseId!==id); save(); routes.cases(); }
-  function openCase(id){ const c=DB.cases.find(x=>x.id===id); if(!c) return;
-    const tasks=(c.tasks||[]).map((t,i)=>`<li class="flex items-center gap-2"><input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${c.id}',${i},this.checked)"><span class="${t.done?'line-through text-gray-400':''}">${t.title}</span><span class="text-xs text-gray-400 ml-auto">${t.due||''}</span></li>`).join('');
-    const entries=(c.timeEntries||[]).map((t,i)=>renderTimeItem(t,c.id,i)).join('');
-    const inv=(c.invoices||[]).map((v,i)=>renderInvoiceItem(v,c.id,i)).join('');
-    content.innerHTML=`
-    <div class="flex items-center justify-between"><div><div class="text-sm text-gray-500">Case</div><h2 class="text-xl font-bold">${c.title}</h2></div><div class="flex gap-2"><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5" onclick="openCaseForm('${c.id}')">Edit</button><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 bg-sky-600 text-white" onclick="openTimer('${c.id}')">Start Timer</button></div></div>
-    <div class="grid lg:grid-cols-3 gap-4 mt-4">
-      <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4 lg:col-span-2">
-        <div class="grid md:grid-cols-2 gap-4">
-          <div><div class="text-sm text-gray-500">Status</div><div class="mt-1">${pill(c.status)}</div></div>
-          <div><div class="text-sm text-gray-500">Client</div><div class="mt-1">${clientName(c.clientId)}</div></div>
-          <div><div class="text-sm text-gray-500">Practice Area</div><div class="mt-1">${c.practiceArea||'-'}</div></div>
-          <div><div class="text-sm text-gray-500">Due Date</div><div class="mt-1">${c.dueDate||'-'}</div></div>
-        </div>
-        <div class="mt-4"><div class="text-sm text-gray-500">Description</div><p class="mt-1">${(c.description||'–').replace(/\\n/g,'<br>')}</p></div>
-      </div>
-      <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">
-        <div class="flex items-center justify-between"><h3 class="font-semibold">Tasks</h3><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5" onclick="addTask('${c.id}')">Add</button></div>
-        <ul class="mt-2 space-y-2" id="taskList">${tasks||'<li class="text-sm text-gray-500">No tasks</li>'}</ul>
-      </div>
-    </div>
-    <div class="grid lg:grid-cols-2 gap-4 mt-4">
-      <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">
-        <div class="flex items-center justify-between"><h3 class="font-semibold">Time Entries</h3><div class="text-sm text-gray-500">Total: ${totalHoursCase(c.id).toFixed(2)} h • ${formatMoney(totalBilledCase(c.id))}</div></div>
-        <div id="caseTime" class="mt-2 space-y-2">${entries||'<div class="text-sm text-gray-500">No time entries</div>'}</div>
-      </div>
-      <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">
-        <div class="flex items-center justify_between"><h3 class="font-semibold">Invoices</h3><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5" onclick="generateInvoice('${c.id}')">Generate</button></div>
-        <div id="caseInvoices" class="mt-2 space-y-2">${inv||'<div class="text-sm text-gray-500">No invoices</div>'}</div>
-      </div>
-    </div>`;
-  }
-
-  function filterCases(q){ const rows=document.getElementById('caseRows'); const text=(q||'').toLowerCase(); rows.querySelectorAll('tr').forEach(tr=>{ tr.style.display=tr.textContent.toLowerCase().includes(text)?'':''; }); }
-  function addTask(caseId){ const title=prompt('Task title'); if(!title) return; const c=DB.cases.find(c=>c.id===caseId); c.tasks=c.tasks||[]; c.tasks.push({title,done:false,due:''}); save(); openCase(caseId); }
-  function toggleTask(caseId,idx,done){ const c=DB.cases.find(c=>c.id===caseId); if(!c) return; c.tasks[idx].done=!!done; save(); }
-  function workflowTemplates(){ return [{key:'intake',name:'Client Intake',desc:'Creates initial tasks and deadlines',steps:[{title:'Conflict check',days:1},{title:'Engagement letter sent',days:2},{title:'Collect KYC / IDs',days:3}]},{key:'discovery',name:'Discovery',desc:'Basic civil discovery checklist',steps:[{title:'Interrogatories draft',days:7},{title:'RFPs to opposing party',days:10},{title:'Schedule depositions',days:21}]},{key:'filing',name:'Filing',desc:'Prepare and file initial complaint',steps:[{title:'Draft complaint',days:5},{title:'Assemble exhibits',days:6},{title:'File with court',days:8}]}]; }
-  function applyWorkflow(key){ const tpl=workflowTemplates().find(t=>t.key===key); const sel=document.getElementById('sel_'+key); const caseId=sel.value; if(!caseId) return alert('Select a case'); const c=DB.cases.find(x=>x.id===caseId); c.tasks=c.tasks||[]; const base=new Date(); tpl.steps.forEach(s=>{ const due=new Date(base.getTime()+s.days*86400000).toISOString().slice(0,10); c.tasks.push({title:s.title,done:false,due}); }); save(); alert('Workflow applied to case: '+c.title); }
-  let runningTimer=null;
-  function openTimer(caseId){ const caseOptions=DB.cases.map(c=>`<option value="${c.id}" ${caseId===c.id?'selected':''}>${c.title}</option>`).join(''); const modal=el(`<div class="fixed inset-0 bg-black/40 grid place-items-center p-4"><div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-5 w-full max-w-md"><h3 class="font-semibold">Timer</h3><div class="mt-3 space-y-3"><div><label class="text-xs font-medium text-gray-600">Case</label><select id="tCase" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500">${caseOptions}</select></div><div><label class="text-xs font-medium text-gray-600">Description</label><input id="tDesc" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="e.g., Draft motion"></div><div class="flex items-center gap-3"><button id="tStart" class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 bg-sky-600 text-white">Start</button><button id="tStop" class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5" disabled>Stop</button><div id="tElapsed" class="ml-auto text-sm text-gray-500">0:00:00</div></div></div><div class="mt-4 flex justify-end"><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5" onclick="this.closest('.fixed').remove()">Close</button></div></div></div>`); document.body.appendChild(modal);
-    let startAt=null,tick; modal.querySelector('#tStart').onclick=()=>{ startAt=Date.now(); if(runningTimer) clearInterval(runningTimer); tick=()=>{ const s=Math.floor((Date.now()-startAt)/1000); const h=String(Math.floor(s/3600)).padStart(1,'0'); const m=String(Math.floor((s%3600)/60)).padStart(2,'0'); const sec=String(s%60).padStart(2,'0'); modal.querySelector('#tElapsed').textContent=`${h}:${m}:${sec}`; }; runningTimer=setInterval(tick,500); modal.querySelector('#tStart').disabled=true; modal.querySelector('#tStop').disabled=false; };
-    modal.querySelector('#tStop').onclick=()=>{ if(!startAt) return; clearInterval(runningTimer); const secs=Math.max(1,Math.floor((Date.now()-startAt)/1000)); const hours=secs/3600; const caseId=modal.querySelector('#tCase').value; const desc=modal.querySelector('#tDesc').value; const c=DB.cases.find(x=>x.id===caseId); c.timeEntries=c.timeEntries||[]; c.timeEntries.push({at:nowISO(),hours,rate:DB.settings.hourlyRate,desc}); save(); alert(`Saved ${hours.toFixed(2)} h to ${c.title}`); modal.remove(); if(location.hash.includes('time')) routes.time(); if(location.hash.includes('cases')) openCase(caseId); };
-  }
-  function totalHoursCase(caseId){ const c=DB.cases.find(x=>x.id===caseId); if(!c) return 0; return (c.timeEntries||[]).reduce((a,t)=>a+(t.hours||0),0); }
-  function totalBilledCase(caseId){ const c=DB.cases.find(x=>x.id===caseId); if(!c) return 0; return (c.timeEntries||[]).reduce((a,t)=>a+(t.hours||0)*(t.rate||DB.settings.hourlyRate),0); }
-  function totalHoursAll(){ return DB.cases.reduce((sum,c)=>sum+totalHoursCase(c.id),0); }
-  function totalBilledAll(){ return DB.cases.reduce((sum,c)=>sum+totalBilledCase(c.id),0); }
-  function renderTimeItem(t,caseId,idx){ const amt=(t.hours||0)*(t.rate||DB.settings.hourlyRate); return `<div class="rounded-xl border p-3 flex items-center gap-3"><div class="text-sm"><div class="font-medium">${(t.desc||'—')}</div><div class="text-gray-500">${new Date(t.at).toLocaleString()} • ${(t.hours||0).toFixed(2)} h × ${formatMoney(t.rate||DB.settings.hourlyRate)}</div></div><div class="ml-auto font-semibold">${formatMoney(amt)}</div><button class="text-red-600 text-sm" onclick="deleteTime('${caseId}',${idx})">Delete</button></div>`; }
-  function renderTimeEntries(){ const items=[]; DB.cases.forEach(c=>{ (c.timeEntries||[]).forEach((t,i)=>items.push({c,t,i})) }); if(!items.length) return '<div class="text-sm text-gray-500">No entries</div>'; return items.map(({c,t,i})=>renderTimeItem(t,c.id,i)).join(''); }
-  function deleteTime(caseId,idx){ const c=DB.cases.find(x=>x.id===caseId); if(!c) return; c.timeEntries.splice(idx,1); save(); if(location.hash.includes('time')) routes.time(); else openCase(caseId); }
-  function generateInvoice(caseId){ const id=caseId||prompt('Enter Case ID (or open a case and click Generate)'); const c=DB.cases.find(x=>x.id===id); if(!c) return alert('Case not found'); const lines=(c.timeEntries||[]).map(t=>({label:t.desc||'Time',qty:t.hours,rate:t.rate||DB.settings.hourlyRate})); if(!lines.length) return alert('No time entries to bill'); const subtotal=lines.reduce((a,l)=>a+l.qty*l.rate,0); const tax=subtotal*(DB.settings.taxPercent/100); const total=subtotal+tax; c.invoices=c.invoices||[]; c.invoices.push({id:uid('inv'),at:nowISO(),lines,subtotal,tax,total,paid:false}); save(); if(location.hash.includes('time')) routes.time(); else openCase(c.id); }
-  function renderInvoiceItem(v,caseId,idx){ return `<div class="rounded-xl border p-3"><div class="flex items-center justify-between"><div class="font-semibold">Invoice #${v.id.slice(-6)}</div><div class="text-sm text-gray-500">${new Date(v.at).toLocaleString()}</div></div><div class="mt-1 text-sm">Subtotal ${formatMoney(v.subtotal)} • Tax ${formatMoney(v.tax)} • <span class="font-semibold">Total ${formatMoney(v.total)}</span></div><div class="mt-2 flex gap-2"><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5" onclick="downloadInvoice('${caseId}',${idx})">Download</button><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 ${v.paid?'bg-emerald-600 text-white':''}" onclick="togglePaid('${caseId}',${idx})">${v.paid?'Paid':'Mark Paid'}</button><button class="text-red-600" onclick="deleteInvoice('${caseId}',${idx})">Delete</button></div></div>`; }
-  function renderInvoices(){ const items=[]; DB.cases.forEach(c=>{ (c.invoices||[]).forEach((v,i)=>items.push({c,v,i})) }); if(!items.length) return '<div class="text-sm text-gray-500">No invoices</div>'; return items.map(({c,v,i})=>renderInvoiceItem(v,c.id,i)).join(''); }
-  function togglePaid(caseId,idx){ const c=DB.cases.find(x=>x.id===caseId); c.invoices[idx].paid=!c.invoices[idx].paid; save(); if(location.hash.includes('time')) routes.time(); else openCase(caseId); }
-  function deleteInvoice(caseId,idx){ const c=DB.cases.find(x=>x.id===caseId); c.invoices.splice(idx,1); save(); if(location.hash.includes('time')) routes.time(); else openCase(caseId); }
-  function downloadInvoice(caseId,idx){ const c=DB.cases.find(x=>x.id===caseId); const v=c.invoices[idx]; const lines=v.lines.map(l=>`<tr><td>${l.label}</td><td style="text-align:right">${l.qty.toFixed(2)}</td><td style="text-align:right">${formatMoney(l.rate)}</td><td style="text-align:right">${formatMoney(l.qty*l.rate)}</td></tr>`).join(''); const html=`<!doctype html><html><head><meta charset='utf-8'><title>Invoice</title></head><body style="font-family:Inter,Arial; padding:24px;"><h1 style="margin:0">${DB.settings.firmName}</h1><div>Invoice #${v.id}</div><div style="margin-top:8px">Case: ${c.title}</div><hr style="margin:16px 0"><table style="width:100%; border-collapse:collapse" border="1" cellpadding="8"><thead><tr><th>Description</th><th style="text-align:right">Hours</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead><tbody>${lines}</tbody></table><div style="margin-top:16px; text-align:right"><div>Subtotal ${formatMoney(v.subtotal)}</div><div>Tax ${formatMoney(v.tax)}</div><div style="font-weight:700">Total ${formatMoney(v.total)}</div></div></body></html>`; const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`invoice_${v.id}.html`; a.click(); URL.revokeObjectURL(url); }
-  function onAttachDoc(e){ const f=e.target.files[0]; if(!f) return; const caseId=(DB.cases[0]||{}).id||''; DB.documents.push({id:uid('doc'),caseId,name:f.name,kind:f.type||'n/a',size:f.size||0,addedAt:nowISO()}); save(); routes.documents(); }
-
-  function openClientForm(id){ const existing=DB.clients.find(x=>x.id===id); const c=existing||{ id:'', name:'', email:'', phone:'', dni:'', passport:'', rtn:'', address:'' }; const isEdit=!!existing;
-    content.innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-5 max-w-xl">
-      <h2 class="text-lg font-semibold">${isEdit?'Edit':'New'} Client</h2>
-      <div class="grid grid-cols-3 gap-3 mt-4">
-        <label class="text-xs font-medium text-gray-600">Name</label><input id="clName" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2" value="${c.name}">
-        <label class="text-xs font-medium text-gray-600">Email</label><input id="clEmail" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2" value="${c.email||''}">
-        <label class="text-xs font-medium text-gray-600">Phone</label><input id="clPhone" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2" value="${c.phone||''}">
-        <label class="text-xs font-medium text-gray-600">Documento Nacional de Identificación (DNI)</label><input id="clDNI" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2" value="${c.dni||''}" placeholder="0000 0000 0000" inputmode="numeric" maxlength="14">
-        <label class="text-xs font-medium text-gray-600">Passport Number</label><input id="clPassport" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2" value="${c.passport||''}">
-        <label class="text-xs font-medium text-gray-600">Tax Payer Number (RTN)</label><input id="clRTN" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2" value="${c.rtn||''}" placeholder="#############" inputmode="numeric" maxlength="13" pattern="\\d{13}">
-        <label class="text-xs font-medium text-gray-600">Address</label><textarea id="clAddress" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 col-span-2" rows="2">${c.address||''}</textarea>
-      </div>
-      <div class="mt-4 flex gap-2"><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 bg-sky-600 text-white" onclick="saveClient('${c.id||''}')">Save</button><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5" onclick="routes.clients()">Cancel</button></div>
-    </div>`;
-  }
-  function saveClient(id){ const name=document.getElementById('clName').value.trim(); if(!name) return alert('Name required');
-    const rawDNI=document.getElementById('clDNI').value; const dniVal=rawDNI?formatDNI(rawDNI):''; if(dniVal && !isValidDNI(dniVal)) { alert('DNI must be in the format 0000 0000 0000'); return; }
-    const rawRTN=document.getElementById('clRTN').value; const rtnVal=rawRTN?normalizeRTN(rawRTN):''; if(rtnVal && !isValidRTN(rtnVal)) { alert('RTN must be exactly 13 digits (no spaces)'); return; }
-    const rec={ id:id||uid('client'), name, email:document.getElementById('clEmail').value, phone:document.getElementById('clPhone').value, dni:dniVal, passport:document.getElementById('clPassport').value, rtn:rtnVal, address:document.getElementById('clAddress').value };
-    const idx=DB.clients.findIndex(c=>c.id===rec.id); if(idx>-1) DB.clients[idx]=rec; else DB.clients.push(rec); save(); routes.clients();
-  }
-  function renderClientCard(c){ const caseCount=DB.cases.filter(k=>k.clientId===c.id).length; return `<div class="rounded-xl border p-3 flex items-center gap-3"><div class="h-10 w-10 rounded-lg bg-sky-100 grid place-items-center text-sky-700 font-bold">${(c.name||'?').slice(0,2).toUpperCase()}</div><div class="text-sm"><div class="font-semibold">${c.name}</div><div class="text-gray-500">${c.email||''} ${c.phone?('• '+c.phone):''}</div><div class="text-gray-500">DNI: ${c.dni||'-'} • RTN: ${c.rtn||'-'}${c.passport?(' • Passport: '+c.passport):''}</div>${c.address?`<div class="text-gray-500">${c.address}</div>`:''}</div><div class="ml-auto text-xs text-gray-500">${caseCount} case(s)</div><button class="text-sky-700 text-sm underline" onclick="openClientForm('${c.id}')">Edit</button></div>`; }
-  function renderPortal(){ const grouped={}; DB.portalMessages.forEach(m=>{ grouped[m.caseId]=grouped[m.caseId]||[]; grouped[m.caseId].push(m); }); if(Object.keys(grouped).length===0) return '<div class="text-sm text-gray-500">No messages</div>'; return Object.entries(grouped).map(([caseId,msgs])=>`<div class="rounded-xl border p-3"><div class="text-sm font-semibold">${caseTitle(caseId)}</div><div class="mt-2 space-y-2">${msgs.map(m=>`<div class="text-sm ${m.from==='client'?'':'text-right'}"><span class="px-2 py-1 rounded-lg ${m.from==='client'?'bg-gray-100':'bg-sky-100'}">${m.body}</span><span class="text-xs text-gray-400">${new Date(m.at).toLocaleString()}</span></div>`).join('')}</div><div class="mt-2 flex gap-2"><input id="msg_${caseId}" class="w-full rounded-xl border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Write a reply…"><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 bg-sky-600 text-white" onclick="sendPortal('${caseId}')">Send</button></div></div>`).join(''); }
-  function sendPortal(caseId){ const inp=document.getElementById('msg_'+caseId); const body=inp.value.trim(); if(!body) return; DB.portalMessages.push({id:uid('msg'),caseId,from:'firm',body,at:nowISO()}); save(); routes.clients(); }
-
-  function renderReportMini(){ const container=el(`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4 mt-4"><canvas id="mini"></canvas></div>`); content.appendChild(container); try{ const ctx=document.getElementById('mini'); const labels=DB.cases.map(c=>c.title); const data=DB.cases.map(c=>totalHoursCase(c.id)); new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Hours by Case',data}]},options:{responsive:true,plugins:{legend:{display:false}}}});}catch(err){ container.innerHTML='<div class="text-sm text-gray-500">Charts unavailable</div>'; } }
-  function renderFullReports(){ try{ const labels=DB.cases.map(c=>c.title); const hours=DB.cases.map(c=>totalHoursCase(c.id)); const revenue=DB.cases.map(c=>totalBilledCase(c.id)); new Chart(document.getElementById('hoursByCase'),{type:'bar',data:{labels,datasets:[{label:'Hours',data:hours}]},options:{plugins:{legend:{display:false}}}}); new Chart(document.getElementById('revenueByCase'),{type:'bar',data:{labels,datasets:[{label:'Revenue',data:revenue}]},options:{plugins:{legend:{display:false}}}}); const statuses=['Open','Pending','OnHold','Closed']; const statusCounts=statuses.map(s=>DB.cases.filter(c=>c.status===s).length); new Chart(document.getElementById('statusBreakdown'),{type:'doughnut',data:{labels:statuses,datasets:[{data:statusCounts}]}});}catch(e){ console.warn('Chart error',e);} }
-
-  function saveSettings(){ DB.settings.firmName=document.getElementById('sFirm').value||'BARMED®'; DB.settings.hourlyRate=parseFloat(document.getElementById('sRate').value)||100; DB.settings.currency=document.getElementById('sCurrency').value||'USD'; DB.settings.taxPercent=parseFloat(document.getElementById('sTax').value)||0; save(); alert('Saved'); }
-  document.getElementById('exportBtn').onclick=()=>{ const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='barmed_lcms_export.json'; a.click(); URL.revokeObjectURL(url); };
-  document.getElementById('importInput').addEventListener('change',(e)=>{ const f=e.target.files[0]; if(!f) return; const reader=new FileReader(); reader.onload=()=>{ try{ DB=JSON.parse(reader.result); save(); alert('Imported'); renderView('dashboard'); }catch{ alert('Invalid JSON'); } }; reader.readAsText(f); });
-  document.getElementById('resetBtn').onclick=()=>{ if(!confirm('This will erase all data saved in your browser for this demo. Continue?')) return; DB=defaultData(); save(); renderView('dashboard'); };
-
-  document.getElementById('runTestsBtn').onclick=runTests;
-  function runTests(){ const results=[]; function pass(n){results.push({n,ok:true});} function fail(n,e){results.push({n,ok:false,e:String(e)});}
-    try{ if(DB && Array.isArray(DB.clients) && Array.isArray(DB.cases)) pass('DB shape'); else throw new Error('Bad DB shape'); }catch(e){ fail('DB shape',e); }
-    try{ if(formatDNI('080119900000')==='0801 1990 0000' && isValidDNI('0801 1990 0000')) pass('DNI format/validate'); else throw new Error('DNI rules failed'); if(normalizeRTN(' 0801 1990 00001 ')==='0801199000001' && isValidRTN('0801199000001')) pass('RTN normalize/validate'); else throw new Error('RTN rules failed'); }catch(e){ fail('ID rules',e); }
-    try{ const cBefore=DB.clients.length; const temp={id:uid('client'),name:'Test User',email:'t@ex.com',dni:'0801 1990 0000',rtn:'0801199000001'}; const i1=DB.clients.findIndex(c=>c.id===temp.id); if(i1>-1) DB.clients[i1]=temp; else DB.clients.push(temp); const afterCreate=DB.clients.length; const i2=DB.clients.findIndex(c=>c.id===temp.id); if(i2>-1) DB.clients[i2]={...temp,phone:'222'}; else DB.clients.push({...temp,phone:'222'}); const afterUpdate=DB.clients.length; if(afterCreate===cBefore+1 && afterUpdate===afterCreate) pass('Client upsert'); else throw new Error('Unexpected client counts'); }catch(e){ fail('Client upsert',e); }
-    try{ const cl=DB.clients[0] || {id:uid('client'),name:'Temp'}; if(!DB.clients.find(c=>c.id===cl.id)) DB.clients.push(cl); const caseId=uid('case'); DB.cases.push({id:caseId,title:'Test Case',clientId:cl.id,status:'Open',practiceArea:'Test',createdAt:nowISO(),timeEntries:[],invoices:[],tasks:[]}); const c=DB.cases.find(x=>x.id===caseId); c.timeEntries.push({at:nowISO(),hours:1.5,rate:DB.settings.hourlyRate,desc:'Unit test work'}); if(Math.abs(totalHoursCase(caseId)-1.5)<1e-9) pass('Time totals'); else throw new Error('Wrong hour total'); }catch(e){ fail('Time totals',e); }
-    const modal=el(`<div class="fixed inset-0 bg-black/40 grid place-items-center p-4"><div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-5 w-full max-w-xl"><h3 class="font-semibold mb-2">Test Results</h3><ul class="space-y-1 text-sm">${results.map(r=>`<li>${r.ok?'✅':'❌'} ${r.n}${r.ok?'':` — ${r.e}`}</li>`).join('')}</ul><div class="mt-4 flex justify-end"><button class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5" onclick="this.closest('.fixed').remove()">Close</button></div></div></div>`); document.body.appendChild(modal); }
-  document.getElementById('quickNewCase').onclick=()=>openCaseForm(); document.getElementById('quickNewClient').onclick=()=>openClientForm();
-  if(!localStorage.getItem(LS_KEY)){ DB=defaultData(); const cl1={id:uid('client'),name:'Angel Flores',email:'angel@example.com',phone:'+504 9999-9999',dni:'0801 1990 0000',passport:'HN1234567',rtn:'0801199000001',address:'Col. Palmira, Tegucigalpa'}; const cl2={id:uid('client'),name:'Glenda Urbina',email:'glenda@example.com',phone:'',dni:'0801 1985 1111',passport:'',rtn:'0801198511111',address:'Res. Las Uvas, Tegucigalpa'}; DB.clients.push(cl1,cl2); const cs1={id:uid('case'),title:'Administrative Claim vs State',clientId:cl1.id,status:'Open',practiceArea:'Contencioso Administrativo',dueDate:'',description:'Draft complaint and file',createdAt:nowISO(),timeEntries:[],invoices:[],tasks:[]}; const cs2={id:uid('case'),title:'Trademark Registration – BARMED®',clientId:cl2.id,status:'Pending',practiceArea:'IP',dueDate:'',description:'Classes 35, 36, 45',createdAt:nowISO(),timeEntries:[],invoices:[],tasks:[]}; DB.cases.push(cs1,cs2); DB.portalMessages.push({id:uid('msg'),caseId:cs1.id,from:'client',body:'Can we have an update?',at:nowISO()}); save(); }
-  const initial=(location.hash||'#dashboard').replace('#',''); renderView(initial); const btn=nav.querySelector(`button[data-view="${initial||'dashboard'}"]`); if(btn) btn.classList.add('bg-sky-100');
+  });
   </script>
 </body>
 </html>
