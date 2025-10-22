@@ -1,123 +1,723 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BARMED® — Legal Case Management (Demo)</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <title>LCMS — Law Firm Case Management System (SPA)</title>
+  <meta name="description" content="Single‑file Case Management System for law firms. Modules: Cases, Documents, Client Portal, Workflow, Reports, Proposals, Settings."/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%231b1f27'/><text x='50' y='58' font-size='52' text-anchor='middle' fill='%23fff' font-family='Arial, Helvetica, sans-serif'>⚖️</text></svg>"> 
+  
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Chart.js for simple reporting charts (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- QRCode for proposal/doc sharing (tiny CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+
   <style>
-    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-    #errbar{display:none}
+    :root{
+      --bg: #0f172a;            /* slate-900 */
+      --panel: #111827;         /* gray-900  */
+      --muted: #334155;         /* slate-600 */
+      --text: #e5e7eb;          /* gray-200  */
+      --accent: #22d3ee;        /* cyan-400  */
+      --accent-2:#60a5fa;       /* blue-400  */
+      --danger:#f87171;         /* red-400   */
+      --warning:#f59e0b;        /* amber-500 */
+      --success:#34d399;        /* emerald-400 */
+      --card:#0b1220;           /* darker card */
+      --border:#1f2937;         /* gray-800  */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:linear-gradient(180deg,var(--bg),#0a1224);
+      color:var(--text); font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; 
+      display:flex;
+    }
+    a{color:var(--accent)}
+    .sidebar{
+      width:290px; background:rgba(11,18,32,0.8); border-right:1px solid var(--border);
+      backdrop-filter: blur(4px);
+      display:flex; flex-direction:column; position:sticky; left:0; top:0; height:100vh;
+    }
+    .brand{display:flex; align-items:center; gap:12px; padding:20px; border-bottom:1px solid var(--border)}
+    .logo{width:42px;height:42px;background:linear-gradient(135deg,var(--accent),var(--accent-2));border-radius:12px;display:grid;place-items:center; font-size:22px}
+    .brand h1{font-size:18px; margin:0}
+    .nav{padding:10px; overflow:auto}
+    .nav button{
+      width:100%; text-align:left; padding:12px 14px; background:transparent; border:1px solid transparent; color:var(--text);
+      border-radius:12px; display:flex; align-items:center; gap:10px; cursor:pointer; margin:6px 0; transition:.18s ease;
+    }
+    .nav button:hover{background:rgba(255,255,255,0.03); border-color:var(--border)}
+    .nav button.active{background:linear-gradient(135deg,rgba(34,211,238,0.08),rgba(96,165,250,0.08)); border-color:rgba(34,211,238,0.35)}
+    .kbd{font-size:11px; background:#0e1726; border:1px solid var(--border); padding:2px 6px; border-radius:6px; color:#9fb0c9}
+    
+    .content{flex:1; display:flex; flex-direction:column; min-width:0}
+    .topbar{display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--border); background:rgba(0,0,0,0.2)}
+    .search{display:flex; align-items:center; gap:8px; background:#0d1526; border:1px solid var(--border); padding:8px 12px; border-radius:10px; width:420px}
+    .search input{background:transparent; border:0; outline:0; color:var(--text); width:100%}
+    .user{display:flex; align-items:center; gap:10px}
+    .avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent-2),var(--accent))}
+
+    .grid{display:grid; gap:16px; padding:20px}
+    .two{grid-template-columns: 1.2fr 1fr}
+    .three{grid-template-columns: repeat(3, 1fr)}
+    .card{background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px}
+    .card h3{margin:0 0 10px 0; font-size:16px}
+    .btn {background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#001018; border:0; padding:10px 14px; border-radius:12px; font-weight:600; cursor:pointer}
+    .btn.secondary{background:transparent; color:var(--text); border:1px solid var(--border)}
+    .btn.warn{background:linear-gradient(135deg,var(--warning),#f59e0b)}
+    .btn.danger{background:linear-gradient(135deg,var(--danger),#ef4444)}
+    .btn.ghost{background:transparent; border:1px dashed var(--border)}
+    .btn + .btn{margin-left:8px}
+    .toolbar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px}
+    .row{display:flex; gap:10px; flex-wrap:wrap}
+    .field{display:flex; flex-direction:column; gap:6px; min-width:180px; flex:1}
+    .field input, .field select, .field textarea {background:#0d1526; color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px}
+    .table{width:100%; border-collapse:collapse}
+    .table th,.table td{border-bottom:1px solid var(--border); padding:10px; text-align:left; font-size:14px}
+    .badge{font-size:12px; padding:3px 8px; border-radius:999px; border:1px solid var(--border); background:#0f1a2f; color:#b5c7e6}
+    .status-open{border-color:#3b82f6;color:#93c5fd}
+    .status-closed{border-color:#10b981;color:#6ee7b7}
+    .status-hold{border-color:#f59e0b;color:#fcd34d}
+    .status-risk{border-color:#f87171;color:#fecaca}
+    .pill{display:inline-flex; align-items:center; gap:8px}
+    .progress {height:8px; background:#0b1020; border:1px solid var(--border); border-radius:999px; overflow:hidden}
+    .progress > span{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+    .note{font-size:12px; color:#9fb0c9}
+    .split{display:grid; grid-template-columns: 1fr 1fr; gap:16px}
+    .hidden{display:none !important}
+    .hr{border-top:1px dashed var(--border); margin:10px 0}
+    .right{margin-left:auto}
+    .danger-text{color:#fecaca}
+    .success-text{color:#86efac}
   </style>
 </head>
-<body class="bg-gray-50">
-  <div id="errbar" class="fixed top-0 left-0 right-0 z-[9999] bg-red-600 text-white px-4 py-2 text-sm"></div>
+<body>
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">⚖️</div>
+      <div>
+        <h1>LCMS</h1>
+        <div class="note">Single‑file Case Management</div>
+      </div>
+    </div>
+    <div class="nav" id="nav">
+      <button data-view="dashboard" class="active">🏠 Dashboard</button>
+      <button data-view="cases">📂 Cases</button>
+      <button data-view="documents">📝 Document Writing</button>
+      <button data-view="clientPortal">👤 Client Portal</button>
+      <button data-view="workflow">🔁 Workflow</button>
+      <button data-view="reports">📊 Reports</button>
+      <button data-view="proposals">📄 Service Proposals</button>
+      <button data-view="settings">⚙️ Settings</button>
+    </div>
+    <div style="margin-top:auto;padding:14px; border-top:1px solid var(--border)" class="note">
+      ⌨️ Tips: <span class="kbd">/</span> to search • <span class="kbd">N</span> new case • <span class="kbd">G</span> go to module
+    </div>
+  </aside>
 
-  <div class="min-h-full">
-    <header class="sticky top-0 z-20 border-b border-gray-200 bg-white/80 backdrop-blur">
-      <div class="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8 flex items-center gap-4">
-        <div class="flex items-center gap-3">
-          <div class="h-10 w-10 rounded-xl bg-sky-600 text-white grid place-items-center font-extrabold">B</div>
-          <div>
-            <h1 class="text-lg font-bold leading-tight">BARMED® — Legal Case Management (Demo)</h1>
-            <p class="text-xs text-gray-500">Client-side only • Almacena datos en su navegador (localStorage)</p>
+  <!-- MAIN -->
+  <main class="content">
+    <div class="topbar">
+      <div class="search">
+        🔎 <input id="globalSearch" type="search" placeholder="Search cases, clients, docs… (try 'Acme' or 'contract')"/>
+      </div>
+      <div class="user">
+        <span id="brandNameTop" class="note">Your firm</span>
+        <div class="avatar" title="Admin"></div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <section id="view-dashboard" class="grid two">
+      <div class="card">
+        <h3>At a glance</h3>
+        <div class="grid three">
+          <div class="card">
+            <div class="note">Open cases</div>
+            <div id="statOpen" style="font-size:28px;font-weight:700">0</div>
+          </div>
+          <div class="card">
+            <div class="note">Deadlines (next 7 days)</div>
+            <div id="statDeadlines" style="font-size:28px;font-weight:700">0</div>
+          </div>
+          <div class="card">
+            <div class="note">Proposals pending</div>
+            <div id="statProposals" style="font-size:28px;font-weight:700">0</div>
           </div>
         </div>
-        <div class="ml-auto flex items-center gap-2">
-          <button id="runTestsBtn" class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5">Run Tests</button>
-          <button id="exportBtn" class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5">Export JSON</button>
-          <label class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 cursor-pointer">Import JSON<input id="importInput" type="file" accept="application/json" class="sr-only"/></label>
-          <button id="resetBtn" class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-red-200 text-red-600">Reset Data</button>
+        <div class="hr"></div>
+        <div class="toolbar">
+          <button class="btn" onclick="openNewCase()">➕ New Case</button>
+          <button class="btn secondary" onclick="openView('reports')">View Reports</button>
+        </div>
+        <table class="table" id="tblUpcoming">
+          <thead><tr><th>When</th><th>Case</th><th>Task/Deadline</th><th>Assignee</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Workflow progress</h3>
+        <div class="progress"><span id="progressAll" style="width:0%"></span></div>
+        <div class="note" id="progressAllText">0% done across active cases</div>
+        <canvas id="chartCases" style="margin-top:14px; background:#0c1426; border:1px solid var(--border); border-radius:12px; padding:10px"></canvas>
+      </div>
+    </section>
+
+    <!-- CASES -->
+    <section id="view-cases" class="grid">
+      <div class="card">
+        <div class="row" style="align-items:flex-end">
+          <div class="field"><label>Filter by status</label>
+            <select id="caseFilterStatus" onchange="renderCases()">
+              <option value="">All</option>
+              <option>Open</option>
+              <option>On Hold</option>
+              <option>At Risk</option>
+              <option>Closed</option>
+            </select>
+          </div>
+          <div class="field"><label>Filter by type</label>
+            <select id="caseFilterType" onchange="renderCases()">
+              <option value="">All</option>
+              <option>Administrative</option>
+              <option>Civil</option>
+              <option>Corporate</option>
+              <option>Immigration</option>
+            </select>
+          </div>
+          <button class="btn right" onclick="openNewCase()">➕ New Case</button>
+        </div>
+        <div class="hr"></div>
+        <table class="table" id="tblCases">
+          <thead><tr><th>Case #</th><th>Client</th><th>Type</th><th>Assigned</th><th>Next Deadline</th><th>Status</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Case editor</h3>
+        <div class="split">
+          <div>
+            <div class="row">
+              <div class="field"><label>Case #</label><input id="caseId"></div>
+              <div class="field"><label>Client</label><input id="caseClient"></div>
+            </div>
+            <div class="row">
+              <div class="field"><label>Type</label>
+                <select id="caseType">
+                  <option>Administrative</option><option>Civil</option><option>Corporate</option><option>Immigration</option>
+                </select>
+              </div>
+              <div class="field"><label>Assignee (Lawyer)</label><input id="caseAssignee" list="lawyersList" placeholder="e.g., J. Barahona"></div>
+              <datalist id="lawyersList"></datalist>
+            </div>
+            <div class="row">
+              <div class="field"><label>Status</label>
+                <select id="caseStatus">
+                  <option>Open</option><option>On Hold</option><option>At Risk</option><option>Closed</option>
+                </select>
+              </div>
+              <div class="field"><label>Next Deadline</label><input type="date" id="caseDeadline"></div>
+            </div>
+            <div class="field"><label>Notes / History</label><textarea id="caseNotes" rows="6" placeholder="Court filings, calls, meetings…"></textarea></div>
+            <div class="toolbar">
+              <button class="btn" onclick="saveCase()">💾 Save Case</button>
+              <button class="btn secondary" onclick="newCaseForm()">New</button>
+              <button class="btn danger" onclick="deleteCase()">🗑️ Delete</button>
+            </div>
+          </div>
+          <div>
+            <h4>Tasks for this case</h4>
+            <div class="row">
+              <div class="field"><label>Task</label><input id="taskTitle"></div>
+              <div class="field"><label>Due</label><input type="date" id="taskDue"></div>
+              <div class="field"><label>Owner</label><input id="taskOwner" list="lawyersList"></div>
+              <button class="btn" onclick="addTask()">➕ Add</button>
+            </div>
+            <table class="table" id="tblTasks"><thead><tr><th>Task</th><th>Due</th><th>Owner</th><th>Done</th><th></th></tr></thead><tbody></tbody></table>
+            <div class="hr"></div>
+            <h4>Communication log</h4>
+            <div class="row">
+              <div class="field"><label>Entry</label><input id="commText" placeholder="Call w/ client…"></div>
+              <button class="btn" onclick="addComm()">➕ Log</button>
+            </div>
+            <table class="table" id="tblComm"><thead><tr><th>When</th><th>Entry</th></tr></thead><tbody></tbody></table>
+          </div>
         </div>
       </div>
-    </header>
+    </section>
 
-    <main class="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <aside class="lg:col-span-3 xl:col-span-2">
-        <nav class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-3">
-          <div class="text-xs mb-2 text-gray-500 px-2">Modules</div>
-          <ul id="nav" class="space-y-1">
-            <li><button data-view="dashboard" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">🏠 Dashboard</button></li>
-            <li><button data-view="cases" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">📁 Cases</button></li>
-            <li><button data-view="documents" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">📎 Documents</button></li>
-            <li><button data-view="time" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">⏱️ Time & Billing</button></li>
-            <li><button data-view="clients" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">👥 Clients / Portal</button></li>
-            <li><button data-view="workflows" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">🧩 Workflows</button></li>
-            <li><button data-view="reports" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">📊 Reports</button></li>
-            <li><button data-view="proposals" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">📄 Proposals</button></li>
-            <li><button data-view="settings" class="w-full text-left px-3 py-2 rounded-lg hover:bg-sky-50">⚙️ Settings</button></li>
-          </ul>
-        </nav>
-        <div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4 mt-4">
-          <div class="text-sm font-semibold">Quick Add</div>
-          <div class="mt-3 flex flex-col gap-2">
-            <button id="quickNewCase" class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 bg-sky-600 text-white">New Case</button>
-            <button id="quickNewClient" class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5">New Client</button>
-          </div>
+    <!-- DOCUMENT WRITING -->
+    <section id="view-documents" class="grid">
+      <div class="card">
+        <div class="toolbar">
+          <select id="docTemplateSelect"></select>
+          <button class="btn" onclick="loadTemplate()">Load Template</button>
+          <button class="btn secondary" onclick="saveDocVersion()">Save Version</button>
+          <button class="btn ghost" onclick="exportDoc()">Export .HTML</button>
         </div>
-      </aside>
+        <div id="docEditor" contenteditable="true" style="min-height:260px;background:#0b152a;border:1px solid var(--border);border-radius:12px;padding:14px; line-height:1.6"></div>
+        <div class="note" style="margin-top:6px">Rich text editor (bold/italic/links via native shortcuts). Use the toolbar to manage templates and versions.</div>
+        <div class="hr"></div>
+        <h4>Versions</h4>
+        <ul id="docVersions" class="note"></ul>
+      </div>
+      <div class="card">
+        <h3>Share / QR</h3>
+        <div id="qrcode" style="background:#0b152a;border:1px dashed var(--border); border-radius:12px; padding:20px; display:grid; place-items:center; min-height:220px"></div>
+        <div class="toolbar">
+          <input id="qrText" class="field" placeholder="Text / URL to encode" style="flex:1">
+          <button class="btn" onclick="makeQR()">Generate QR</button>
+        </div>
+      </div>
+    </section>
 
-      <section id="content" class="lg:col-span-9 xl:col-span-10 space-y-6"></section>
-    </main>
-  </div>
+    <!-- CLIENT PORTAL -->
+    <section id="view-clientPortal" class="grid">
+      <div class="card">
+        <h3>Client view (read‑only)</h3>
+        <div class="row">
+          <div class="field"><label>Client</label><input id="portalClient" placeholder="e.g., Acme Ltd"></div>
+          <button class="btn" onclick="renderPortal()">Show</button>
+        </div>
+        <div id="portalOutput"></div>
+      </div>
+      <div class="card">
+        <h3>Secure messages</h3>
+        <div class="row">
+          <div class="field"><label>To (Client)</label><input id="msgTo"></div>
+          <div class="field"><label>Message</label><input id="msgBody"></div>
+          <button class="btn" onclick="sendMessage()">Send</button>
+        </div>
+        <table class="table" id="tblMsgs"><thead><tr><th>When</th><th>To</th><th>Message</th></tr></thead><tbody></tbody></table>
+        <div class="note">(Demo) Messages are stored locally; replace with server‑side messaging for production.</div>
+      </div>
+      <div class="card">
+        <h3>Client uploads</h3>
+        <div class="row">
+          <input type="file" id="clientUpload" multiple>
+          <button class="btn" onclick="handleClientUpload()">Store Meta</button>
+        </div>
+        <table class="table" id="tblUploads"><thead><tr><th>Client</th><th>Filename</th><th>Size</th><th>When</th></tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <!-- WORKFLOW -->
+    <section id="view-workflow" class="grid">
+      <div class="card">
+        <div class="toolbar">
+          <div class="field"><label>Workflow name</label><input id="wfName" placeholder="e.g., Administrative Appeal"></div>
+          <div class="field"><label>Stages (comma‑separated)</label><input id="wfStages" placeholder="Intake, Draft, File, Hearing, Judgment"></div>
+          <button class="btn" onclick="saveWorkflow()">💾 Save Workflow</button>
+        </div>
+        <table class="table" id="tblWorkflows"><thead><tr><th>Name</th><th>Stages</th><th>Assign to Case</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="card">
+        <h3>Apply to case</h3>
+        <div class="row">
+          <div class="field"><label>Case #</label><input id="wfCase"></div>
+          <div class="field"><label>Workflow</label><select id="wfSelect"></select></div>
+          <button class="btn" onclick="applyWorkflow()">Apply</button>
+        </div>
+        <table class="table" id="tblCaseStages"><thead><tr><th>Case #</th><th>Stage</th><th>Done?</th></tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <!-- REPORTS -->
+    <section id="view-reports" class="grid two">
+      <div class="card">
+        <div class="row">
+          <div class="field"><label>Status Filter</label>
+            <select id="rStatus" onchange="renderReports()">
+              <option value="">Any</option><option>Open</option><option>On Hold</option><option>At Risk</option><option>Closed</option>
+            </select></div>
+          <div class="field"><label>Assignee Filter</label><input id="rAssignee" placeholder="Optional" oninput="renderReports()"></div>
+          <button class="btn right" onclick="exportCasesCSV()">Export CSV</button>
+        </div>
+        <table class="table" id="tblReport"><thead><tr><th>Case #</th><th>Client</th><th>Type</th><th>Status</th><th>Assignee</th><th>Next Deadline</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="card">
+        <h3>Case Performance</h3>
+        <canvas id="chartPerf"></canvas>
+      </div>
+    </section>
+
+    <!-- PROPOSALS -->
+    <section id="view-proposals" class="grid">
+      <div class="card">
+        <div class="toolbar">
+          <div class="field"><label>Client</label><input id="ppClient"></div>
+          <div class="field"><label>Title</label><input id="ppTitle" placeholder="Service Proposal"></div>
+          <div class="field"><label>Value (HNL)</label><input id="ppValue" type="number" step="0.01"></div>
+          <div class="field"><label>Status</label>
+            <select id="ppStatus"><option>Draft</option><option>Sent</option><option>Accepted</option><option>Declined</option></select>
+          </div>
+          <button class="btn" onclick="saveProposal()">💾 Save</button>
+          <button class="btn ghost" onclick="renderProposals()">Refresh</button>
+        </div>
+        <div class="field"><label>Proposal Body</label><textarea id="ppBody" rows="6" placeholder="Scope, deliverables, timeline, terms…"></textarea></div>
+        <div class="hr"></div>
+        <table class="table" id="tblProposals"><thead><tr><th>#</th><th>Client</th><th>Title</th><th>Value</th><th>Status</th><th>Updated</th><th>QR</th><th></th></tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="grid two">
+      <div class="card">
+        <h3>Users & Roles</h3>
+        <div class="row">
+          <div class="field"><label>Full name</label><input id="uName"></div>
+          <div class="field"><label>Role</label>
+            <select id="uRole"><option>Admin</option><option>Lawyer</option><option>Paralegal</option><option>Client</option></select>
+          </div>
+          <button class="btn" onclick="addUser()">➕ Add</button>
+        </div>
+        <table class="table" id="tblUsers"><thead><tr><th>Name</th><th>Role</th><th></th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="card">
+        <h3>Preferences & Branding</h3>
+        <div class="field"><label>Brand / Firm name</label><input id="brandName"></div>
+        <div class="row">
+          <div class="field"><label>Notification lead (days)</label><input id="notifyDays" type="number" min="0" value="5"></div>
+          <div class="field"><label>Timezone</label><input id="tz" placeholder="America/Tegucigalpa"></div>
+        </div>
+        <div class="row">
+          <input type="file" id="brandLogo" accept="image/*">
+          <button class="btn" onclick="saveBranding()">Save Branding</button>
+        </div>
+        <div class="hr"></div>
+        <div class="toolbar">
+          <button class="btn warn" onclick="downloadBackup()">⬇️ Export Backup (JSON)</button>
+          <input type="file" id="restoreFile" accept="application/json">
+          <button class="btn secondary" onclick="restoreBackup()">Restore</button>
+          <button class="btn danger right" onclick="hardReset()">Factory Reset</button>
+        </div>
+        <div class="note">Data is stored in your browser (localStorage). Connect to a backend for multi‑user, secure persistence.</div>
+      </div>
+    </section>
+
+  </main>
 
   <script>
-  window.addEventListener('error', function (e) {
-    var bar = document.getElementById('errbar');
-    bar.textContent = 'JS error: ' + (e && e.message ? e.message : 'unknown');
-    bar.style.display = 'block';
-  });
+    // ====== Simple Local DB (localStorage) ======
+    const DB_KEY = 'lcmsDB_v1';
+    const emptyDB = { cases: [], tasks: {}, comms: {}, documents: {versions: []}, 
+      templates: defaultTemplates(), workflows: [], caseStages: {}, proposals: [], users: defaultUsers(),
+      messages: [], uploads: [], settings: {brand:'Your Firm', notifyDays:5, tz:'America/Tegucigalpa', logo:''} };
 
-  window.addEventListener('DOMContentLoaded', function () {
-    try {
-      const LS_KEY='barmed_lcms_v1'; const nowISO=()=>new Date().toISOString(); const uid=(p='id')=>p+'_'+Math.random().toString(36).slice(2,9);
-      const defaultData=()=>({settings:{hourlyRate:100,currency:'USD',firmName:'BARMED®',taxPercent:0,locale:'es-HN'},clients:[],cases:[],documents:[],portalMessages:[]});
-      let DB=load();
-      function load(){ try{ const raw=localStorage.getItem(LS_KEY); return raw?JSON.parse(raw):defaultData(); }catch(e){ return defaultData(); } }
-      function save(){ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }
-
-      function el(h){ const t=document.createElement('template'); t.innerHTML=h.trim(); return t.content.firstElementChild; }
-      function renderReportMini(){ const content=document.getElementById('content'); const container=el(`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4 mt-4"><canvas id="mini"></canvas></div>`); content.appendChild(container); try{ if(window.Chart){ const ctx=document.getElementById('mini'); new Chart(ctx,{type:'bar',data:{labels:['A','B'],datasets:[{label:'Demo',data:[1,2]}]},options:{plugins:{legend:{display:false}}}});} }catch(err){ /* ignore */ } }
-
-      const routes={
-        dashboard(){ const content=document.getElementById('content'); content.innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-5">Dashboard ready</div>`; renderReportMini(); },
-        cases(){ document.getElementById('content').innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">Cases here</div>`; },
-        documents(){ document.getElementById('content').innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">Docs here</div>`; },
-        time(){ document.getElementById('content').innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">Time here</div>`; },
-        clients(){ document.getElementById('content').innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">Clients here</div>`; },
-        workflows(){ document.getElementById('content').innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">Workflows here</div>`; },
-        reports(){ document.getElementById('content').innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">Reports here</div>`; },
-        proposals(){ document.getElementById('content').innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4">Proposals here</div>`; },
-        settings(){ const c=document.getElementById('content'); c.innerHTML=`<div class="rounded-2xl bg-white shadow-lg ring-1 ring-black/5 p-4"><div class="text-sm">Settings</div><input id="sFirm" class="rounded-xl border px-3 py-2 mt-2" value="${DB.settings.firmName}"><button id="btnSaveSettings" class="rounded-xl px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-black/5 mt-3">Save</button></div>`; document.getElementById('btnSaveSettings').onclick=function(){ DB.settings.firmName=document.getElementById('sFirm').value||'BARMED®'; save(); alert('Saved'); }; }
-      };
-
-      const nav=document.getElementById('nav');
-      nav.addEventListener('click', (e)=>{ if(e.target.matches('button[data-view]')){ const v=e.target.getAttribute('data-view'); renderView(v); [...nav.querySelectorAll('button')].forEach(b=>b.classList.remove('bg-sky-100')); e.target.classList.add('bg-sky-100'); }});
-      function renderView(v){ window.location.hash=v; (routes[v]||routes.dashboard)(); }
-      window.addEventListener('hashchange', ()=>{ const v=location.hash.replace('#','')||'dashboard'; renderView(v); });
-
-      document.getElementById('runTestsBtn').onclick=function(){ alert('Events wired. If you see this, buttons work.'); };
-      document.getElementById('exportBtn').onclick=function(){ alert('Export clicked'); };
-      document.getElementById('importInput').addEventListener('change', function(){ alert('Import selected'); });
-      document.getElementById('resetBtn').onclick=function(){ if(confirm('Reset demo data?')){ DB=defaultData(); save(); renderView('dashboard'); } };
-
-      document.getElementById('quickNewCase').onclick=function(){ renderView('cases'); };
-      document.getElementById('quickNewClient').onclick=function(){ renderView('clients'); };
-
-      if(!localStorage.getItem(LS_KEY)){ DB=defaultData(); save(); }
-
-      const initial=(location.hash||'#dashboard').replace('#',''); renderView(initial); const btn=nav.querySelector(`button[data-view="${initial||'dashboard'}"]`); if(btn) btn.classList.add('bg-sky-100');
-    } catch (e) {
-      var bar = document.getElementById('errbar');
-      bar.textContent = 'Init error: ' + e.message;
-      bar.style.display = 'block';
+    function defaultUsers(){
+      return [
+        {name:'Admin', role:'Admin'},
+        {name:'J. Barahona', role:'Lawyer'},
+        {name:'I. Barahona', role:'Paralegal'}
+      ];
     }
-  });
+    function defaultTemplates(){
+      return [
+        {name:'Contract — Services', html:`<h1>Service Agreement</h1><p>This Service Agreement (the "Agreement") is made between <b>[Client]</b> and <b>[Firm]</b> on <b>[Date]</b>.</p><h3>1. Scope</h3><p>…</p><h3>2. Fees</h3><p>…</p><h3>3. Term</h3><p>…</p>`},
+        {name:'Motion — Administrative Appeal', html:`<h1>Administrative Appeal</h1><p>Before the competent authority, the appellant states…</p>`},
+        {name:'Brief — Civil', html:`<h1>Legal Brief</h1><p>Facts, Issues, Argument, Relief Sought…</p>`}
+      ];
+    }
+
+    function db(){
+      const raw = localStorage.getItem(DB_KEY);
+      if(!raw){ localStorage.setItem(DB_KEY, JSON.stringify(emptyDB)); return JSON.parse(JSON.stringify(emptyDB)); }
+      try{ return JSON.parse(raw); } catch(e){ console.warn('DB parse error; resetting'); localStorage.setItem(DB_KEY, JSON.stringify(emptyDB)); return JSON.parse(JSON.stringify(emptyDB)); }
+    }
+    function saveDB(data){ localStorage.setItem(DB_KEY, JSON.stringify(data)); refreshStats(); }
+
+    // ====== Navigation ======
+    const nav = document.getElementById('nav');
+    nav.addEventListener('click', (e)=>{
+      const btn = e.target.closest('button[data-view]'); if(!btn) return; 
+      document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active', b===btn));
+      openView(btn.dataset.view);
+    });
+    function openView(view){
+      document.querySelectorAll('main > section').forEach(s=>s.classList.add('hidden'));
+      document.getElementById('view-'+view).classList.remove('hidden');
+      location.hash = view;
+      if(view==='cases') renderCases();
+      if(view==='documents') renderDocTemplates();
+      if(view==='clientPortal') { renderMsgs(); renderUploads(); }
+      if(view==='workflow') { renderWorkflows(); fillWorkflowSelect(); renderCaseStages(); }
+      if(view==='reports') renderReports();
+      if(view==='proposals') renderProposals();
+      if(view==='settings') renderUsers(); loadBrandingIntoUI();
+      if(view==='dashboard') renderDashboard();
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e)=>{
+      if(e.key==='/' && document.activeElement.tagName!=='INPUT' && document.activeElement.getAttribute('contenteditable')!=="true"){
+        e.preventDefault(); document.getElementById('globalSearch').focus();
+      }
+      if(e.key.toLowerCase()==='n' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){
+        e.preventDefault(); openView('cases'); openNewCase();
+      }
+      if(e.key.toLowerCase()==='g' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){
+        e.preventDefault(); document.querySelector('.nav button.active')?.focus();
+      }
+    });
+
+    // ====== Seed demo data (first run) ======
+    (function seed(){
+      const d = db();
+      if(!d.cases.length){
+        d.cases = [
+          {id:'PJ-2025-001', client:'Acme Ltd', type:'Administrative', assignee:'J. Barahona', status:'Open', deadline:addDays(5), notes:'Filed appeal; awaiting hearing.'},
+          {id:'CIV-2025-014', client:'Maria Lopez', type:'Civil', assignee:'I. Barahona', status:'At Risk', deadline:addDays(2), notes:'Need documents from client.'},
+          {id:'CORP-2025-008', client:'Globex Inc.', type:'Corporate', assignee:'Admin', status:'On Hold', deadline:addDays(14), notes:'Waiting for approval.'}
+        ];
+        d.tasks = {
+          'PJ-2025-001':[ {title:'Draft brief', due:addDays(2), owner:'J. Barahona', done:false} ],
+          'CIV-2025-014':[ {title:'Client docs', due:addDays(1), owner:'I. Barahona', done:false} ]
+        };
+        d.comms = {
+          'PJ-2025-001':[ {when:new Date().toISOString(), text:'Call with client; explained timeline.'} ]
+        };
+        d.proposals = [ {id:1, client:'Acme Ltd', title:'Administrative Appeal Services', value:50000, status:'Sent', body:'Scope and timeline…', updated:new Date().toISOString()} ];
+        saveDB(d);
+      }
+    })();
+
+    // ====== Utilities ======
+    function addDays(n){ const dt=new Date(); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10); }
+    function fmtDate(s){ if(!s) return ''; return new Date(s).toLocaleDateString(); }
+    function el(tag, attrs={}, html=''){ const e=document.createElement(tag); Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v)); e.innerHTML=html; return e; }
+    function download(filename, text){ const a=document.createElement('a'); a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(text); a.download=filename; a.click(); }
+
+    // ====== Global Search ======
+    document.getElementById('globalSearch').addEventListener('input', (e)=>{
+      const q = e.target.value.toLowerCase();
+      const d = db();
+      const hits = d.cases.filter(c=>Object.values(c).join(' ').toLowerCase().includes(q));
+      const tbody = document.querySelector('#tblCases tbody');
+      if(location.hash!=='#cases') openView('cases');
+      renderCases(hits);
+    });
+
+    // ====== Dashboard ======
+    function refreshStats(){
+      const d=db();
+      const open = d.cases.filter(c=>c.status!=='Closed').length; 
+      const deadlines = d.cases.filter(c=>{
+        const nd = new Date(c.deadline); const now = new Date(); const diff=(nd-now)/(1000*60*60*24); return diff>=0 && diff<=7;
+      }).length;
+      const pendingProp = d.proposals.filter(p=>['Draft','Sent'].includes(p.status)).length;
+      document.getElementById('statOpen').textContent = open;
+      document.getElementById('statDeadlines').textContent = deadlines;
+      document.getElementById('statProposals').textContent = pendingProp;
+      const allTasks = Object.values(d.tasks).flat(); const done = allTasks.filter(t=>t.done).length; const pct = allTasks.length? Math.round((done/allTasks.length)*100):0; 
+      document.getElementById('progressAll').style.width = pct+'%';
+      document.getElementById('progressAllText').textContent = pct+"% done across active cases";
+      drawCasesChart();
+    }
+    function renderDashboard(){
+      refreshStats();
+      // Upcoming deadlines table
+      const d=db(); const list = [...d.cases].sort((a,b)=> (a.deadline>b.deadline?1:-1)).slice(0,6);
+      const tbody = document.querySelector('#tblUpcoming tbody'); tbody.innerHTML='';
+      list.forEach(c=>{
+        const tr=el('tr');
+        tr.append(el('td',{},fmtDate(c.deadline)));
+        tr.append(el('td',{},c.id+ ' — '+c.client));
+        const t = (d.tasks[c.id]||[]).find(x=>!x.done); tr.append(el('td',{},t? t.title : '—'));
+        tr.append(el('td',{},c.assignee||'—'));
+        tr.append(el('td',{},`<span class="badge status-${cls(c.status)}">${c.status}</span>`));
+        tbody.append(tr);
+      });
+    }
+    function cls(status){ return status.toLowerCase().replace(' ',''); }
+    let chartCasesRef=null, chartPerfRef=null;
+    function drawCasesChart(){
+      const d=db(); const byType={}; d.cases.forEach(c=>byType[c.type]=(byType[c.type]||0)+1);
+      const ctx=document.getElementById('chartCases'); if(chartCasesRef) chartCasesRef.destroy();
+      chartCasesRef = new Chart(ctx,{type:'doughnut', data:{labels:Object.keys(byType), datasets:[{data:Object.values(byType)}]}});
+    }
+
+    // ====== Cases ======
+    function renderCases(forced){
+      const d = db();
+      const fStatus = document.getElementById('caseFilterStatus').value;
+      const fType = document.getElementById('caseFilterType').value;
+      const data = (forced || d.cases).filter(c=> (!fStatus||c.status===fStatus) && (!fType||c.type===fType));
+      const tbody = document.querySelector('#tblCases tbody'); tbody.innerHTML='';
+      data.forEach(c=>{
+        const tr=el('tr');
+        tr.append(el('td',{},`<b>${c.id}</b>`));
+        tr.append(el('td',{},c.client));
+        tr.append(el('td',{},c.type));
+        tr.append(el('td',{},c.assignee||'—'));
+        tr.append(el('td',{},fmtDate(c.deadline)));
+        tr.append(el('td',{},`<span class="badge status-${cls(c.status)}">${c.status}</span>`));
+        tr.append(el('td',{},`<button class="btn secondary" onclick="loadCase('${c.id}')">Edit</button>`));
+        tbody.append(tr);
+      });
+      // Fill lawyers list
+      const dl=document.getElementById('lawyersList'); dl.innerHTML=''; db().users.filter(u=>['Lawyer','Admin','Paralegal'].includes(u.role)).forEach(u=> dl.append(el('option',{value:u.name})) );
+    }
+    function newCaseForm(){ ['caseId','caseClient','caseAssignee','caseNotes'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('caseType').value='Administrative'; document.getElementById('caseStatus').value='Open'; document.getElementById('caseDeadline').value='';
+      document.getElementById('tblTasks').querySelector('tbody').innerHTML='';
+      document.getElementById('tblComm').querySelector('tbody').innerHTML='';
+    }
+    function openNewCase(){ openView('cases'); newCaseForm(); document.getElementById('caseId').focus(); }
+    function saveCase(){
+      const d=db(); const id=val('caseId'); if(!id) return alert('Case # required');
+      const obj={ id, client:val('caseClient'), type:val('caseType'), assignee:val('caseAssignee'), status:val('caseStatus'), deadline:val('caseDeadline'), notes:val('caseNotes') };
+      const i=d.cases.findIndex(c=>c.id===id); if(i>-1) d.cases[i]=obj; else d.cases.push(obj);
+      saveDB(d); renderCases(); alert('Saved');
+    }
+    function loadCase(id){ const d=db(); const c=d.cases.find(x=>x.id===id); if(!c) return; openView('cases');
+      setVal('caseId',c.id); setVal('caseClient',c.client); setVal('caseType',c.type); setVal('caseAssignee',c.assignee); setVal('caseStatus',c.status); setVal('caseDeadline',c.deadline); setVal('caseNotes',c.notes||'');
+      renderTasks(id); renderComms(id);
+    }
+    function deleteCase(){ const id=val('caseId'); if(!id) return; if(!confirm('Delete case '+id+'?')) return; const d=db(); d.cases=d.cases.filter(c=>c.id!==id); delete d.tasks[id]; delete d.comms[id]; saveDB(d); renderCases(); newCaseForm(); }
+    function val(id){ return document.getElementById(id).value }
+    function setVal(id,v){ document.getElementById(id).value=v||'' }
+
+    // Tasks
+    function renderTasks(id){ const d=db(); const tbody=document.querySelector('#tblTasks tbody'); tbody.innerHTML='';
+      (d.tasks[id]||[]).forEach((t,idx)=>{
+        const tr=el('tr');
+        tr.append(el('td',{},t.title)); tr.append(el('td',{},fmtDate(t.due))); tr.append(el('td',{},t.owner||''));
+        tr.append(el('td',{},`<input type='checkbox' ${t.done?'checked':''} onchange="toggleTask('${id}',${idx},this.checked)">`));
+        tr.append(el('td',{},`<button class='btn secondary' onclick="delTask('${id}',${idx})">Del</button>`));
+        tbody.append(tr);
+      });
+    }
+    function addTask(){ const id=val('caseId'); if(!id) return alert('Save or select a case first.');
+      const d=db(); const list=d.tasks[id]||[]; list.push({title:val('taskTitle'), due:val('taskDue'), owner:val('taskOwner'), done:false}); d.tasks[id]=list; saveDB(d); renderTasks(id); ['taskTitle','taskDue','taskOwner'].forEach(i=>setVal(i,'')); }
+    function toggleTask(id, idx, checked){ const d=db(); d.tasks[id][idx].done=checked; saveDB(d); }
+    function delTask(id, idx){ const d=db(); d.tasks[id].splice(idx,1); saveDB(d); renderTasks(id); }
+
+    // Comms
+    function renderComms(id){ const d=db(); const tbody=document.querySelector('#tblComm tbody'); tbody.innerHTML=''; (d.comms[id]||[]).forEach(c=>{
+      const tr=el('tr'); tr.append(el('td',{},new Date(c.when).toLocaleString())); tr.append(el('td',{},c.text)); tbody.append(tr);
+    }); }
+    function addComm(){ const id=val('caseId'); if(!id) return alert('Select a case'); const d=db(); const list=d.comms[id]||[]; list.push({when:new Date().toISOString(), text:val('commText')}); d.comms[id]=list; saveDB(d); renderComms(id); setVal('commText',''); }
+
+    // ====== Documents ======
+    function renderDocTemplates(){ const d=db(); const sel=document.getElementById('docTemplateSelect'); sel.innerHTML='';
+      d.templates.forEach((t,i)=> sel.append(el('option',{value:i},t.name)) );
+      if(d.templates.length) sel.selectedIndex=0;
+      document.getElementById('docEditor').innerHTML = d.templates[0]?.html || '<p>Start typing…</p>';
+      renderVersions();
+    }
+    function loadTemplate(){ const d=db(); const idx=parseInt(document.getElementById('docTemplateSelect').value); document.getElementById('docEditor').innerHTML=d.templates[idx].html; }
+    function saveDocVersion(){ const d=db(); const html=document.getElementById('docEditor').innerHTML; d.documents.versions.unshift({when:new Date().toISOString(), html}); d.documents.versions = d.documents.versions.slice(0,25); saveDB(d); renderVersions(); }
+    function renderVersions(){ const d=db(); const ul=document.getElementById('docVersions'); ul.innerHTML='';
+      d.documents.versions.forEach((v,i)=>{
+        const li=el('li',{},`<a href="#" onclick="loadVersion(${i});return false;">${new Date(v.when).toLocaleString()}</a> — ${Math.round(v.html.length/10)} words`); ul.append(li);
+      });
+    }
+    function loadVersion(i){ const d=db(); document.getElementById('docEditor').innerHTML=d.documents.versions[i].html; }
+    function exportDoc(){ const html='<!doctype html><meta charset="utf-8"><title>Document</title>'+document.getElementById('docEditor').innerHTML; download('document.html', html); }
+
+    // QR
+    function makeQR(){ const txt=document.getElementById('qrText').value || document.getElementById('docEditor').innerText.slice(0,120);
+      const box=document.getElementById('qrcode'); box.innerHTML=''; QRCode.toCanvas(txt,{width:220, margin:1}, function (err, canvas) { if(err){ alert('QR error'); return;} box.append(canvas); });
+    }
+
+    // ====== Client Portal ======
+    function renderPortal(){ const name = val('portalClient'); const d=db(); const cases=d.cases.filter(c=>c.client.toLowerCase().includes(name.toLowerCase()));
+      const div=document.getElementById('portalOutput'); div.innerHTML='';
+      if(!cases.length){ div.innerHTML='<div class="note">No cases for this client.</div>'; return; }
+      cases.forEach(c=>{
+        const elc=el('div',{class:'card'},`<h3>${c.id} — ${c.type}</h3><div class='note'>Status: ${c.status} • Assignee: ${c.assignee||'-'} • Next: ${fmtDate(c.deadline)||'-'}</div><div style='margin-top:8px'>${(db().tasks[c.id]||[]).map(t=>`<div class='pill'><span class='badge'>${fmtDate(t.due)}</span> ${t.title}</div>`).join('<br>') || '<span class="note">No tasks</span>'}</div>`);
+        div.append(elc);
+      });
+    }
+
+    // Messages
+    function sendMessage(){ const to=val('msgTo'); const body=val('msgBody'); if(!to||!body) return alert('Fill message fields'); const d=db(); d.messages.unshift({when:new Date().toISOString(), to, body}); saveDB(d); renderMsgs(); setVal('msgTo',''); setVal('msgBody',''); }
+    function renderMsgs(){ const tbody=document.querySelector('#tblMsgs tbody'); tbody.innerHTML=''; db().messages.forEach(m=>{
+      const tr=el('tr'); tr.append(el('td',{}, new Date(m.when).toLocaleString())); tr.append(el('td',{}, m.to)); tr.append(el('td',{}, m.body)); tbody.append(tr);
+    }); }
+
+    // Uploads (metadata only)
+    function handleClientUpload(){ const inp=document.getElementById('clientUpload'); const client=val('portalClient')||'Unknown'; const d=db();
+      [...inp.files].forEach(f=> d.uploads.unshift({client, name:f.name, size:f.size, when:new Date().toISOString()}) );
+      saveDB(d); renderUploads(); inp.value=''; }
+    function renderUploads(){ const tbody=document.querySelector('#tblUploads tbody'); tbody.innerHTML=''; db().uploads.forEach(u=>{
+      const tr=el('tr'); tr.append(el('td',{},u.client)); tr.append(el('td',{},u.name)); tr.append(el('td',{},(u.size/1024).toFixed(1)+' KB')); tr.append(el('td',{}, new Date(u.when).toLocaleString())); tbody.append(tr);
+    }); }
+
+    // ====== Workflow ======
+    function saveWorkflow(){ const name=val('wfName'); const stages=val('wfStages').split(',').map(s=>s.trim()).filter(Boolean); if(!name||!stages.length) return alert('Name and at least one stage');
+      const d=db(); const i=d.workflows.findIndex(w=>w.name===name); if(i>-1) d.workflows[i]={name,stages}; else d.workflows.push({name,stages}); saveDB(d); renderWorkflows(); document.getElementById('wfName').value=''; document.getElementById('wfStages').value=''; }
+    function renderWorkflows(){ const tbody=document.querySelector('#tblWorkflows tbody'); tbody.innerHTML=''; db().workflows.forEach(w=>{
+      const tr=el('tr'); tr.append(el('td',{},`<b>${w.name}</b>`)); tr.append(el('td',{}, w.stages.join(' → '))); tr.append(el('td',{}, `<button class='btn secondary' onclick="prefillApply('${w.name}')">Assign…</button>`)); tbody.append(tr);
+    }); }
+    function prefillApply(name){ openView('workflow'); setVal('wfSelect', name); }
+    function fillWorkflowSelect(){ const sel=document.getElementById('wfSelect'); sel.innerHTML=''; db().workflows.forEach(w=> sel.append(el('option',{value:w.name}, w.name)) ); }
+    function applyWorkflow(){ const id=val('wfCase'); const name=val('wfSelect'); if(!id||!name) return alert('Case # and workflow'); const d=db(); const wf=d.workflows.find(w=>w.name===name); if(!wf) return alert('Workflow not found');
+      d.caseStages[id] = wf.stages.map((stage,i)=>({stage, done: i===0? false : false})); saveDB(d); renderCaseStages(); }
+    function renderCaseStages(){ const tbody=document.querySelector('#tblCaseStages tbody'); tbody.innerHTML=''; const d=db(); Object.entries(d.caseStages).forEach(([id, stages])=>{
+      stages.forEach((s,idx)=>{
+        const tr=el('tr'); tr.append(el('td',{},id)); tr.append(el('td',{}, s.stage));
+        tr.append(el('td',{}, `<input type='checkbox' ${s.done?'checked':''} onchange="toggleStage('${id}',${idx},this.checked)">`)); tbody.append(tr);
+      });
+    }); }
+    function toggleStage(id, idx, checked){ const d=db(); d.caseStages[id][idx].done=checked; saveDB(d); refreshStats(); }
+
+    // ====== Reports ======
+    function renderReports(){ const d=db(); const s=document.getElementById('rStatus').value; const a=val('rAssignee').toLowerCase();
+      const data=d.cases.filter(c=> (!s||c.status===s) && (!a || (c.assignee||'').toLowerCase().includes(a)) );
+      const tbody=document.querySelector('#tblReport tbody'); tbody.innerHTML=''; data.forEach(c=>{
+        const tr=el('tr'); tr.append(el('td',{},c.id)); tr.append(el('td',{},c.client)); tr.append(el('td',{},c.type)); tr.append(el('td',{},c.status)); tr.append(el('td',{},c.assignee||'')); tr.append(el('td',{},fmtDate(c.deadline))); tbody.append(tr);
+      });
+      drawPerfChart(data);
+    }
+    function drawPerfChart(data){ const d=data; const byStatus={}; d.forEach(c=> byStatus[c.status]=(byStatus[c.status]||0)+1 ); const ctx=document.getElementById('chartPerf'); if(chartPerfRef) chartPerfRef.destroy(); chartPerfRef=new Chart(ctx,{type:'bar', data:{labels:Object.keys(byStatus), datasets:[{label:'Cases', data:Object.values(byStatus)}]}}); }
+    function exportCasesCSV(){ const d=db(); const rows=[["Case","Client","Type","Status","Assignee","Deadline"]].concat(d.cases.map(c=>[c.id,c.client,c.type,c.status,c.assignee||'',c.deadline||''])); const csv=rows.map(r=>r.map(x=>`"${(x||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n'); download('cases.csv', csv); }
+
+    // ====== Proposals ======
+    function saveProposal(){ const d=db(); const nextId = (d.proposals[0]?.id||0)+1; const obj={ id: nextId, client:val('ppClient'), title:val('ppTitle')||'Service Proposal', value:parseFloat(val('ppValue')||'0'), status:val('ppStatus'), body:val('ppBody'), updated:new Date().toISOString() };
+      d.proposals.unshift(obj); saveDB(d); renderProposals(); makeProposalQR(obj); alert('Saved proposal #'+obj.id); }
+    function renderProposals(){ const tbody=document.querySelector('#tblProposals tbody'); tbody.innerHTML=''; db().proposals.forEach(p=>{
+      const tr=el('tr'); tr.append(el('td',{},'#'+p.id)); tr.append(el('td',{},p.client)); tr.append(el('td',{},p.title)); tr.append(el('td',{}, new Intl.NumberFormat(undefined,{style:'currency', currency:'HNL'}).format(p.value||0)) ); tr.append(el('td',{}, `<span class='badge'>${p.status}</span>`)); tr.append(el('td',{}, new Date(p.updated).toLocaleString()));
+      const cellQR=el('td'); const div=document.createElement('div'); div.id='qr-prop-'+p.id; cellQR.append(div); tr.append(cellQR);
+      tr.append(el('td',{},`<button class='btn secondary' onclick='makeProposalQR(${JSON.stringify(p)})'>QR</button>`));
+      tbody.append(tr);
+    }); }
+    function makeProposalQR(p){ const txt = `Proposal ${p.id} — ${p.client} — ${p.title} — ${p.value}`; const box=document.getElementById('qr-prop-'+p.id); if(!box) return; box.innerHTML=''; QRCode.toCanvas(txt,{width:110, margin:0}, function (err, canvas) { if(!err) box.append(canvas); }); }
+
+    // ====== Settings ======
+    function renderUsers(){ const tbody=document.querySelector('#tblUsers tbody'); tbody.innerHTML=''; db().users.forEach((u,idx)=>{
+      const tr=el('tr'); tr.append(el('td',{},u.name)); tr.append(el('td',{},u.role)); tr.append(el('td',{},`<button class='btn secondary' onclick='delUser(${idx})'>Remove</button>`)); tbody.append(tr);
+    }); }
+    function addUser(){ const name=val('uName'); const role=val('uRole'); if(!name) return; const d=db(); d.users.push({name,role}); saveDB(d); renderUsers(); ['uName'].forEach(i=>setVal(i,'')); }
+    function delUser(i){ const d=db(); d.users.splice(i,1); saveDB(d); renderUsers(); }
+
+    function saveBranding(){ const d=db(); d.settings.brand=val('brandName')||'Your Firm'; d.settings.notifyDays=parseInt(val('notifyDays')||'5'); d.settings.tz=val('tz')||'America/Tegucigalpa';
+      const file=document.getElementById('brandLogo').files[0]; if(file){ const r=new FileReader(); r.onload=()=>{ d.settings.logo=r.result; saveDB(d); loadBrandingIntoUI(); alert('Branding saved'); }; r.readAsDataURL(file); } else { saveDB(d); loadBrandingIntoUI(); alert('Branding saved'); }
+    }
+    function loadBrandingIntoUI(){ const s=db().settings; setVal('brandName', s.brand); document.getElementById('brandNameTop').textContent=s.brand; setVal('notifyDays', s.notifyDays); setVal('tz', s.tz); }
+
+    function downloadBackup(){ download('lcms-backup.json', JSON.stringify(db())) }
+    function restoreBackup(){ const f=document.getElementById('restoreFile').files[0]; if(!f) return alert('Choose a file'); const r=new FileReader(); r.onload=()=>{ try{ localStorage.setItem(DB_KEY, r.result); alert('Restored. Reloading…'); location.reload(); }catch(e){ alert('Invalid file'); } }; r.readAsText(f); }
+    function hardReset(){ if(!confirm('Erase all data?')) return; localStorage.removeItem(DB_KEY); location.reload(); }
+
+    // ====== Notifications (deadline lead time) ======
+    function checkDeadlines(){ const d=db(); const lead=d.settings.notifyDays||5; const now=new Date(); const soon=d.cases.filter(c=>{ if(!c.deadline) return false; const dd=new Date(c.deadline); const days=(dd-now)/(1000*60*60*24); return days>=0 && days<=lead && c.status!=='Closed'; });
+      if(soon.length){ const names=soon.map(c=>c.id+" ("+c.client+")").join(', '); console.log('Upcoming deadlines:', names); }
+    }
+    setInterval(checkDeadlines, 1000*60*5);
+
+    // ====== Init ======
+    window.addEventListener('load', ()=>{
+      // open last view or dashboard
+      const hash=location.hash.replace('#','')||'dashboard'; openView(hash);
+      refreshStats();
+    });
   </script>
 </body>
 </html>
