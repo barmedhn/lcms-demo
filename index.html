@@ -3,97 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LCMS — Law Firm Case Management System (SPA)</title>
-  <meta name="description" content="Single‑file Case Management System for law firms. Modules: Cases, Documents, Client Portal, Workflow, Reports, Proposals, Settings."/>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%231b1f27'/><text x='50' y='58' font-size='52' text-anchor='middle' fill='%23fff' font-family='Arial, Helvetica, sans-serif'>⚖️</text></svg>"> 
-  
-  <!-- Fonts -->
+  <title>LCMS — Law Firm Case Management System</title>
+  <meta name="description" content="LCMS modular SPA: Cases, Documents, Client Portal, Workflow, Reports, Proposals, Settings."/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%231b1f27'/><text x='50' y='58' font-size='52' text-anchor='middle' fill='%23fff' font-family='Arial, Helvetica, sans-serif'>⚖️</text></svg>">
+  <link rel="stylesheet" href="./assets/styles.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-  <!-- Chart.js for simple reporting charts (CDN) -->
+  <!-- libs -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <!-- QRCode for proposal/doc sharing (tiny CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-
-  <style>
-    :root{
-      --bg: #0f172a;            /* slate-900 */
-      --panel: #111827;         /* gray-900  */
-      --muted: #334155;         /* slate-600 */
-      --text: #e5e7eb;          /* gray-200  */
-      --accent: #22d3ee;        /* cyan-400  */
-      --accent-2:#60a5fa;       /* blue-400  */
-      --danger:#f87171;         /* red-400   */
-      --warning:#f59e0b;        /* amber-500 */
-      --success:#34d399;        /* emerald-400 */
-      --card:#0b1220;           /* darker card */
-      --border:#1f2937;         /* gray-800  */
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; background:linear-gradient(180deg,var(--bg),#0a1224);
-      color:var(--text); font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; 
-      display:flex;
-    }
-    a{color:var(--accent)}
-    .sidebar{
-      width:290px; background:rgba(11,18,32,0.8); border-right:1px solid var(--border);
-      backdrop-filter: blur(4px);
-      display:flex; flex-direction:column; position:sticky; left:0; top:0; height:100vh;
-    }
-    .brand{display:flex; align-items:center; gap:12px; padding:20px; border-bottom:1px solid var(--border)}
-    .logo{width:42px;height:42px;background:linear-gradient(135deg,var(--accent),var(--accent-2));border-radius:12px;display:grid;place-items:center; font-size:22px}
-    .brand h1{font-size:18px; margin:0}
-    .nav{padding:10px; overflow:auto}
-    .nav button{
-      width:100%; text-align:left; padding:12px 14px; background:transparent; border:1px solid transparent; color:var(--text);
-      border-radius:12px; display:flex; align-items:center; gap:10px; cursor:pointer; margin:6px 0; transition:.18s ease;
-    }
-    .nav button:hover{background:rgba(255,255,255,0.03); border-color:var(--border)}
-    .nav button.active{background:linear-gradient(135deg,rgba(34,211,238,0.08),rgba(96,165,250,0.08)); border-color:rgba(34,211,238,0.35)}
-    .kbd{font-size:11px; background:#0e1726; border:1px solid var(--border); padding:2px 6px; border-radius:6px; color:#9fb0c9}
-    
-    .content{flex:1; display:flex; flex-direction:column; min-width:0}
-    .topbar{display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--border); background:rgba(0,0,0,0.2)}
-    .search{display:flex; align-items:center; gap:8px; background:#0d1526; border:1px solid var(--border); padding:8px 12px; border-radius:10px; width:420px}
-    .search input{background:transparent; border:0; outline:0; color:var(--text); width:100%}
-    .user{display:flex; align-items:center; gap:10px}
-    .avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent-2),var(--accent))}
-
-    .grid{display:grid; gap:16px; padding:20px}
-    .two{grid-template-columns: 1.2fr 1fr}
-    .three{grid-template-columns: repeat(3, 1fr)}
-    .card{background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px}
-    .card h3{margin:0 0 10px 0; font-size:16px}
-    .btn {background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#001018; border:0; padding:10px 14px; border-radius:12px; font-weight:600; cursor:pointer}
-    .btn.secondary{background:transparent; color:var(--text); border:1px solid var(--border)}
-    .btn.warn{background:linear-gradient(135deg,var(--warning),#f59e0b)}
-    .btn.danger{background:linear-gradient(135deg,var(--danger),#ef4444)}
-    .btn.ghost{background:transparent; border:1px dashed var(--border)}
-    .btn + .btn{margin-left:8px}
-    .toolbar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:10px}
-    .row{display:flex; gap:10px; flex-wrap:wrap}
-    .field{display:flex; flex-direction:column; gap:6px; min-width:180px; flex:1}
-    .field input, .field select, .field textarea {background:#0d1526; color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px}
-    .table{width:100%; border-collapse:collapse}
-    .table th,.table td{border-bottom:1px solid var(--border); padding:10px; text-align:left; font-size:14px}
-    .badge{font-size:12px; padding:3px 8px; border-radius:999px; border:1px solid var(--border); background:#0f1a2f; color:#b5c7e6}
-    .status-open{border-color:#3b82f6;color:#93c5fd}
-    .status-closed{border-color:#10b981;color:#6ee7b7}
-    .status-hold{border-color:#f59e0b;color:#fcd34d}
-    .status-risk{border-color:#f87171;color:#fecaca}
-    .pill{display:inline-flex; align-items:center; gap:8px}
-    .progress {height:8px; background:#0b1020; border:1px solid var(--border); border-radius:999px; overflow:hidden}
-    .progress > span{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2))}
-    .note{font-size:12px; color:#9fb0c9}
-    .split{display:grid; grid-template-columns: 1fr 1fr; gap:16px}
-    .hidden{display:none !important}
-    .hr{border-top:1px dashed var(--border); margin:10px 0}
-    .right{margin-left:auto}
-    .danger-text{color:#fecaca}
-    .success-text{color:#86efac}
-  </style>
 </head>
 <body>
   <!-- SIDEBAR -->
@@ -102,7 +19,7 @@
       <div class="logo">⚖️</div>
       <div>
         <h1>LCMS</h1>
-        <div class="note">Single‑file Case Management</div>
+        <div class="note">Modular Case Management</div>
       </div>
     </div>
     <div class="nav" id="nav">
@@ -116,7 +33,7 @@
       <button data-view="settings">⚙️ Settings</button>
     </div>
     <div style="margin-top:auto;padding:14px; border-top:1px solid var(--border)" class="note">
-      ⌨️ Tips: <span class="kbd">/</span> to search • <span class="kbd">N</span> new case • <span class="kbd">G</span> go to module
+      ⌨️ Tips: <span class="kbd">/</span> search • <span class="kbd">N</span> new case • <span class="kbd">G</span> go to module
     </div>
   </aside>
 
@@ -124,7 +41,7 @@
   <main class="content">
     <div class="topbar">
       <div class="search">
-        🔎 <input id="globalSearch" type="search" placeholder="Search cases, clients, docs… (try 'Acme' or 'contract')"/>
+        🔎 <input id="globalSearch" type="search" placeholder="Search cases, clients, docs…"/>
       </div>
       <div class="user">
         <span id="brandNameTop" class="note">Your firm</span>
@@ -132,28 +49,19 @@
       </div>
     </div>
 
-    <!-- DASHBOARD -->
+    <!-- VIEWS (same markup as the single-file version) -->
     <section id="view-dashboard" class="grid two">
       <div class="card">
         <h3>At a glance</h3>
         <div class="grid three">
-          <div class="card">
-            <div class="note">Open cases</div>
-            <div id="statOpen" style="font-size:28px;font-weight:700">0</div>
-          </div>
-          <div class="card">
-            <div class="note">Deadlines (next 7 days)</div>
-            <div id="statDeadlines" style="font-size:28px;font-weight:700">0</div>
-          </div>
-          <div class="card">
-            <div class="note">Proposals pending</div>
-            <div id="statProposals" style="font-size:28px;font-weight:700">0</div>
-          </div>
+          <div class="card"><div class="note">Open cases</div><div id="statOpen" style="font-size:28px;font-weight:700">0</div></div>
+          <div class="card"><div class="note">Deadlines (next 7 days)</div><div id="statDeadlines" style="font-size:28px;font-weight:700">0</div></div>
+          <div class="card"><div class="note">Proposals pending</div><div id="statProposals" style="font-size:28px;font-weight:700">0</div></div>
         </div>
         <div class="hr"></div>
         <div class="toolbar">
-          <button class="btn" onclick="openNewCase()">➕ New Case</button>
-          <button class="btn secondary" onclick="openView('reports')">View Reports</button>
+          <button class="btn" onclick="window.app.openNewCase()">➕ New Case</button>
+          <button class="btn secondary" onclick="window.app.openView('reports')">View Reports</button>
         </div>
         <table class="table" id="tblUpcoming">
           <thead><tr><th>When</th><th>Case</th><th>Task/Deadline</th><th>Assignee</th><th>Status</th></tr></thead>
@@ -168,29 +76,16 @@
       </div>
     </section>
 
-    <!-- CASES -->
     <section id="view-cases" class="grid">
       <div class="card">
         <div class="row" style="align-items:flex-end">
           <div class="field"><label>Filter by status</label>
-            <select id="caseFilterStatus" onchange="renderCases()">
-              <option value="">All</option>
-              <option>Open</option>
-              <option>On Hold</option>
-              <option>At Risk</option>
-              <option>Closed</option>
-            </select>
+            <select id="caseFilterStatus"><option value="">All</option><option>Open</option><option>On Hold</option><option>At Risk</option><option>Closed</option></select>
           </div>
           <div class="field"><label>Filter by type</label>
-            <select id="caseFilterType" onchange="renderCases()">
-              <option value="">All</option>
-              <option>Administrative</option>
-              <option>Civil</option>
-              <option>Corporate</option>
-              <option>Immigration</option>
-            </select>
+            <select id="caseFilterType"><option value="">All</option><option>Administrative</option><option>Civil</option><option>Corporate</option><option>Immigration</option></select>
           </div>
-          <button class="btn right" onclick="openNewCase()">➕ New Case</button>
+          <button class="btn right" id="btnNewCase">➕ New Case</button>
         </div>
         <div class="hr"></div>
         <table class="table" id="tblCases">
@@ -198,7 +93,6 @@
           <tbody></tbody>
         </table>
       </div>
-
       <div class="card">
         <h3>Case editor</h3>
         <div class="split">
@@ -209,26 +103,22 @@
             </div>
             <div class="row">
               <div class="field"><label>Type</label>
-                <select id="caseType">
-                  <option>Administrative</option><option>Civil</option><option>Corporate</option><option>Immigration</option>
-                </select>
+                <select id="caseType"><option>Administrative</option><option>Civil</option><option>Corporate</option><option>Immigration</option></select>
               </div>
               <div class="field"><label>Assignee (Lawyer)</label><input id="caseAssignee" list="lawyersList" placeholder="e.g., J. Barahona"></div>
               <datalist id="lawyersList"></datalist>
             </div>
             <div class="row">
               <div class="field"><label>Status</label>
-                <select id="caseStatus">
-                  <option>Open</option><option>On Hold</option><option>At Risk</option><option>Closed</option>
-                </select>
+                <select id="caseStatus"><option>Open</option><option>On Hold</option><option>At Risk</option><option>Closed</option></select>
               </div>
               <div class="field"><label>Next Deadline</label><input type="date" id="caseDeadline"></div>
             </div>
             <div class="field"><label>Notes / History</label><textarea id="caseNotes" rows="6" placeholder="Court filings, calls, meetings…"></textarea></div>
             <div class="toolbar">
-              <button class="btn" onclick="saveCase()">💾 Save Case</button>
-              <button class="btn secondary" onclick="newCaseForm()">New</button>
-              <button class="btn danger" onclick="deleteCase()">🗑️ Delete</button>
+              <button class="btn" id="btnSaveCase">💾 Save Case</button>
+              <button class="btn secondary" id="btnNew">New</button>
+              <button class="btn danger" id="btnDelete">🗑️ Delete</button>
             </div>
           </div>
           <div>
@@ -237,14 +127,14 @@
               <div class="field"><label>Task</label><input id="taskTitle"></div>
               <div class="field"><label>Due</label><input type="date" id="taskDue"></div>
               <div class="field"><label>Owner</label><input id="taskOwner" list="lawyersList"></div>
-              <button class="btn" onclick="addTask()">➕ Add</button>
+              <button class="btn" id="btnAddTask">➕ Add</button>
             </div>
             <table class="table" id="tblTasks"><thead><tr><th>Task</th><th>Due</th><th>Owner</th><th>Done</th><th></th></tr></thead><tbody></tbody></table>
             <div class="hr"></div>
             <h4>Communication log</h4>
             <div class="row">
               <div class="field"><label>Entry</label><input id="commText" placeholder="Call w/ client…"></div>
-              <button class="btn" onclick="addComm()">➕ Log</button>
+              <button class="btn" id="btnLog">➕ Log</button>
             </div>
             <table class="table" id="tblComm"><thead><tr><th>When</th><th>Entry</th></tr></thead><tbody></tbody></table>
           </div>
@@ -252,14 +142,13 @@
       </div>
     </section>
 
-    <!-- DOCUMENT WRITING -->
     <section id="view-documents" class="grid">
       <div class="card">
         <div class="toolbar">
           <select id="docTemplateSelect"></select>
-          <button class="btn" onclick="loadTemplate()">Load Template</button>
-          <button class="btn secondary" onclick="saveDocVersion()">Save Version</button>
-          <button class="btn ghost" onclick="exportDoc()">Export .HTML</button>
+          <button class="btn" id="btnLoadTemplate">Load Template</button>
+          <button class="btn secondary" id="btnSaveVersion">Save Version</button>
+          <button class="btn ghost" id="btnExportDoc">Export .HTML</button>
         </div>
         <div id="docEditor" contenteditable="true" style="min-height:260px;background:#0b152a;border:1px solid var(--border);border-radius:12px;padding:14px; line-height:1.6"></div>
         <div class="note" style="margin-top:6px">Rich text editor (bold/italic/links via native shortcuts). Use the toolbar to manage templates and versions.</div>
@@ -272,18 +161,17 @@
         <div id="qrcode" style="background:#0b152a;border:1px dashed var(--border); border-radius:12px; padding:20px; display:grid; place-items:center; min-height:220px"></div>
         <div class="toolbar">
           <input id="qrText" class="field" placeholder="Text / URL to encode" style="flex:1">
-          <button class="btn" onclick="makeQR()">Generate QR</button>
+          <button class="btn" id="btnMakeQR">Generate QR</button>
         </div>
       </div>
     </section>
 
-    <!-- CLIENT PORTAL -->
     <section id="view-clientPortal" class="grid">
       <div class="card">
         <h3>Client view (read‑only)</h3>
         <div class="row">
           <div class="field"><label>Client</label><input id="portalClient" placeholder="e.g., Acme Ltd"></div>
-          <button class="btn" onclick="renderPortal()">Show</button>
+          <button class="btn" id="btnShowPortal">Show</button>
         </div>
         <div id="portalOutput"></div>
       </div>
@@ -292,7 +180,7 @@
         <div class="row">
           <div class="field"><label>To (Client)</label><input id="msgTo"></div>
           <div class="field"><label>Message</label><input id="msgBody"></div>
-          <button class="btn" onclick="sendMessage()">Send</button>
+          <button class="btn" id="btnSendMsg">Send</button>
         </div>
         <table class="table" id="tblMsgs"><thead><tr><th>When</th><th>To</th><th>Message</th></tr></thead><tbody></tbody></table>
         <div class="note">(Demo) Messages are stored locally; replace with server‑side messaging for production.</div>
@@ -301,19 +189,18 @@
         <h3>Client uploads</h3>
         <div class="row">
           <input type="file" id="clientUpload" multiple>
-          <button class="btn" onclick="handleClientUpload()">Store Meta</button>
+          <button class="btn" id="btnStoreUpload">Store Meta</button>
         </div>
         <table class="table" id="tblUploads"><thead><tr><th>Client</th><th>Filename</th><th>Size</th><th>When</th></tr></thead><tbody></tbody></table>
       </div>
     </section>
 
-    <!-- WORKFLOW -->
     <section id="view-workflow" class="grid">
       <div class="card">
         <div class="toolbar">
           <div class="field"><label>Workflow name</label><input id="wfName" placeholder="e.g., Administrative Appeal"></div>
           <div class="field"><label>Stages (comma‑separated)</label><input id="wfStages" placeholder="Intake, Draft, File, Hearing, Judgment"></div>
-          <button class="btn" onclick="saveWorkflow()">💾 Save Workflow</button>
+          <button class="btn" id="btnSaveWorkflow">💾 Save Workflow</button>
         </div>
         <table class="table" id="tblWorkflows"><thead><tr><th>Name</th><th>Stages</th><th>Assign to Case</th></tr></thead><tbody></tbody></table>
       </div>
@@ -322,22 +209,19 @@
         <div class="row">
           <div class="field"><label>Case #</label><input id="wfCase"></div>
           <div class="field"><label>Workflow</label><select id="wfSelect"></select></div>
-          <button class="btn" onclick="applyWorkflow()">Apply</button>
+          <button class="btn" id="btnApplyWorkflow">Apply</button>
         </div>
         <table class="table" id="tblCaseStages"><thead><tr><th>Case #</th><th>Stage</th><th>Done?</th></tr></thead><tbody></tbody></table>
       </div>
     </section>
 
-    <!-- REPORTS -->
     <section id="view-reports" class="grid two">
       <div class="card">
         <div class="row">
           <div class="field"><label>Status Filter</label>
-            <select id="rStatus" onchange="renderReports()">
-              <option value="">Any</option><option>Open</option><option>On Hold</option><option>At Risk</option><option>Closed</option>
-            </select></div>
-          <div class="field"><label>Assignee Filter</label><input id="rAssignee" placeholder="Optional" oninput="renderReports()"></div>
-          <button class="btn right" onclick="exportCasesCSV()">Export CSV</button>
+            <select id="rStatus"><option value="">Any</option><option>Open</option><option>On Hold</option><option>At Risk</option><option>Closed</option></select></div>
+          <div class="field"><label>Assignee Filter</label><input id="rAssignee" placeholder="Optional"></div>
+          <button class="btn right" id="btnExportCSV">Export CSV</button>
         </div>
         <table class="table" id="tblReport"><thead><tr><th>Case #</th><th>Client</th><th>Type</th><th>Status</th><th>Assignee</th><th>Next Deadline</th></tr></thead><tbody></tbody></table>
       </div>
@@ -347,26 +231,56 @@
       </div>
     </section>
 
-    <!-- PROPOSALS -->
     <section id="view-proposals" class="grid">
       <div class="card">
         <div class="toolbar">
           <div class="field"><label>Client</label><input id="ppClient"></div>
           <div class="field"><label>Title</label><input id="ppTitle" placeholder="Service Proposal"></div>
-          <div class="field"><label>Value (HNL)</label><input id="ppValue" type="number" step="0.01"></div>
+          <div class="field"><label>Subject / Asunto</label><input id="ppSubject" placeholder="Propuesta de servicios profesionales …"></div>
+          <div class="field"><label>Value (HNL/USD)</label><input id="ppValue" type="number" step="0.01"></div>
           <div class="field"><label>Status</label>
             <select id="ppStatus"><option>Draft</option><option>Sent</option><option>Accepted</option><option>Declined</option></select>
           </div>
-          <button class="btn" onclick="saveProposal()">💾 Save</button>
-          <button class="btn ghost" onclick="renderProposals()">Refresh</button>
+          <button class="btn" id="btnSaveProposal">💾 Save</button>
+          <button class="btn ghost" id="btnRefreshProposals">Refresh</button>
+          <button class="btn" id="btnPreviewProposal">👁️ Preview</button>
+          <button class="btn secondary" id="btnExportPropHTML">Export .HTML</button>
+          <button class="btn warn" id="btnPrintProposal">🖨️ Print / PDF</button>
         </div>
-        <div class="field"><label>Proposal Body</label><textarea id="ppBody" rows="6" placeholder="Scope, deliverables, timeline, terms…"></textarea></div>
+
+        <details class="card" style="margin:8px 0">
+          <summary style="cursor:pointer">Template Fields (BARMED®)</summary>
+          <div class="grid two" style="margin-top:10px">
+            <div class="field"><label>Client Country / País</label><input id="ppCountry" placeholder="República del Perú"></div>
+            <div class="field"><label>Primary Phone</label><input id="ppPhone" placeholder="+504 9557 6771"></div>
+            <div class="field"><label>Expediente # (SGJD/RNP)</label><input id="ppExpediente" placeholder="V-12012024-7"></div>
+            <div class="field"><label>Total in Words</label><input id="ppTotalWords" placeholder="QUINIENTOS CINCUENTA DÓLARES ESTADOUNIDENSES CON 00/100"></div>
+            <div class="field"><label>Milestone A (desc)</label><input id="ppA" placeholder="Poder + Auténtica + Personamiento + Estudio"></div>
+            <div class="field"><label>Amount A</label><input id="ppAmtA" type="number" step="0.01" placeholder="150"></div>
+            <div class="field"><label>Milestone B (desc)</label><input id="ppB" placeholder="Rectificación de apellido en SGJD"></div>
+            <div class="field"><label>Amount B</label><input id="ppAmtB" type="number" step="0.01" placeholder="400"></div>
+            <div class="field"><label>Schedule 1 (date)</label><input id="ppS1" type="date"></div>
+            <div class="field"><label>Schedule 1 (desc)</label><input id="ppS1d" placeholder="Pago inicial de 'A' y preparación de poder"></div>
+            <div class="field"><label>Schedule 2 (date)</label><input id="ppS2" type="date"></div>
+            <div class="field"><label>Schedule 2 (desc)</label><input id="ppS2d" placeholder="Personamiento en SGJD"></div>
+            <div class="field"><label>Schedule 3 (date)</label><input id="ppS3" type="date"></div>
+            <div class="field"><label>Schedule 3 (desc)</label><input id="ppS3d" placeholder="Revisión de expediente y redacción de informe"></div>
+            <div class="field"><label>Validity (deadline)</label><input id="ppValidUntil" type="datetime-local"></div>
+            <div class="field"><label>Bank (display)</label><input id="ppBank" placeholder="Banco de Occidente — JAIME F. BARAHONA IRIAS — 21-443-000305-9"></div>
+          </div>
+        </details>
+
+        <div class="field"><label>Proposal Body (additional notes)</label><textarea id="ppBody" rows="6" placeholder="Scope, deliverables, timeline, terms…"></textarea></div>
         <div class="hr"></div>
         <table class="table" id="tblProposals"><thead><tr><th>#</th><th>Client</th><th>Title</th><th>Value</th><th>Status</th><th>Updated</th><th>QR</th><th></th></tr></thead><tbody></tbody></table>
       </div>
+
+      <div class="card">
+        <h3>Live Preview</h3>
+        <div id="proposalPreview" style="background:#0b152a;border:1px solid var(--border); border-radius:12px; padding:16px; min-height:320px; overflow:auto"></div>
+      </div>
     </section>
 
-    <!-- SETTINGS -->
     <section id="view-settings" class="grid two">
       <div class="card">
         <h3>Users & Roles</h3>
@@ -375,7 +289,7 @@
           <div class="field"><label>Role</label>
             <select id="uRole"><option>Admin</option><option>Lawyer</option><option>Paralegal</option><option>Client</option></select>
           </div>
-          <button class="btn" onclick="addUser()">➕ Add</button>
+          <button class="btn" id="btnAddUser">➕ Add</button>
         </div>
         <table class="table" id="tblUsers"><thead><tr><th>Name</th><th>Role</th><th></th></tr></thead><tbody></tbody></table>
       </div>
@@ -388,336 +302,51 @@
         </div>
         <div class="row">
           <input type="file" id="brandLogo" accept="image/*">
-          <button class="btn" onclick="saveBranding()">Save Branding</button>
+          <button class="btn" id="btnSaveBranding">Save Branding</button>
         </div>
         <div class="hr"></div>
         <div class="toolbar">
-          <button class="btn warn" onclick="downloadBackup()">⬇️ Export Backup (JSON)</button>
+          <button class="btn warn" id="btnExportBackup">⬇️ Export Backup (JSON)</button>
           <input type="file" id="restoreFile" accept="application/json">
-          <button class="btn secondary" onclick="restoreBackup()">Restore</button>
-          <button class="btn danger right" onclick="hardReset()">Factory Reset</button>
+          <button class="btn secondary" id="btnRestoreBackup">Restore</button>
+          <button class="btn danger right" id="btnFactoryReset">Factory Reset</button>
         </div>
         <div class="note">Data is stored in your browser (localStorage). Connect to a backend for multi‑user, secure persistence.</div>
       </div>
     </section>
-
   </main>
 
-  <script>
-    // ====== Simple Local DB (localStorage) ======
-    const DB_KEY = 'lcmsDB_v1';
-    const emptyDB = { cases: [], tasks: {}, comms: {}, documents: {versions: []}, 
-      templates: defaultTemplates(), workflows: [], caseStages: {}, proposals: [], users: defaultUsers(),
-      messages: [], uploads: [], settings: {brand:'Your Firm', notifyDays:5, tz:'America/Tegucigalpa', logo:''} };
+  <!-- App bootstrap -->
+  <script type="module">
+    import * as Utils from './modules/utils.js';
+    import * as DB from './modules/db.js';
+    import * as Router from './modules/router.js';
+    import * as Charts from './modules/charts.js';
+    import * as Cases from './modules/cases.js';
+    import * as Docs from './modules/documents.js';
+    import * as Portal from './modules/client-portal.js';
+    import * as Workflow from './modules/workflow.js';
+    import * as Reports from './modules/reports.js';
+    import * as Proposals from './modules/proposals.js';
+    import * as Settings from './modules/settings.js';
 
-    function defaultUsers(){
-      return [
-        {name:'Admin', role:'Admin'},
-        {name:'J. Barahona', role:'Lawyer'},
-        {name:'I. Barahona', role:'Paralegal'}
-      ];
-    }
-    function defaultTemplates(){
-      return [
-        {name:'Contract — Services', html:`<h1>Service Agreement</h1><p>This Service Agreement (the "Agreement") is made between <b>[Client]</b> and <b>[Firm]</b> on <b>[Date]</b>.</p><h3>1. Scope</h3><p>…</p><h3>2. Fees</h3><p>…</p><h3>3. Term</h3><p>…</p>`},
-        {name:'Motion — Administrative Appeal', html:`<h1>Administrative Appeal</h1><p>Before the competent authority, the appellant states…</p>`},
-        {name:'Brief — Civil', html:`<h1>Legal Brief</h1><p>Facts, Issues, Argument, Relief Sought…</p>`}
-      ];
-    }
+    // expose minimal app API for button inline handlers that we kept
+    window.app = {
+      openView: Router.openView,
+      openNewCase: Cases.openNewCase,
+    };
 
-    function db(){
-      const raw = localStorage.getItem(DB_KEY);
-      if(!raw){ localStorage.setItem(DB_KEY, JSON.stringify(emptyDB)); return JSON.parse(JSON.stringify(emptyDB)); }
-      try{ return JSON.parse(raw); } catch(e){ console.warn('DB parse error; resetting'); localStorage.setItem(DB_KEY, JSON.stringify(emptyDB)); return JSON.parse(JSON.stringify(emptyDB)); }
-    }
-    function saveDB(data){ localStorage.setItem(DB_KEY, JSON.stringify(data)); refreshStats(); }
-
-    // ====== Navigation ======
-    const nav = document.getElementById('nav');
-    nav.addEventListener('click', (e)=>{
-      const btn = e.target.closest('button[data-view]'); if(!btn) return; 
-      document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active', b===btn));
-      openView(btn.dataset.view);
-    });
-    function openView(view){
-      document.querySelectorAll('main > section').forEach(s=>s.classList.add('hidden'));
-      document.getElementById('view-'+view).classList.remove('hidden');
-      location.hash = view;
-      if(view==='cases') renderCases();
-      if(view==='documents') renderDocTemplates();
-      if(view==='clientPortal') { renderMsgs(); renderUploads(); }
-      if(view==='workflow') { renderWorkflows(); fillWorkflowSelect(); renderCaseStages(); }
-      if(view==='reports') renderReports();
-      if(view==='proposals') renderProposals();
-      if(view==='settings') renderUsers(); loadBrandingIntoUI();
-      if(view==='dashboard') renderDashboard();
-    }
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e)=>{
-      if(e.key==='/' && document.activeElement.tagName!=='INPUT' && document.activeElement.getAttribute('contenteditable')!=="true"){
-        e.preventDefault(); document.getElementById('globalSearch').focus();
-      }
-      if(e.key.toLowerCase()==='n' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){
-        e.preventDefault(); openView('cases'); openNewCase();
-      }
-      if(e.key.toLowerCase()==='g' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){
-        e.preventDefault(); document.querySelector('.nav button.active')?.focus();
-      }
-    });
-
-    // ====== Seed demo data (first run) ======
-    (function seed(){
-      const d = db();
-      if(!d.cases.length){
-        d.cases = [
-          {id:'PJ-2025-001', client:'Acme Ltd', type:'Administrative', assignee:'J. Barahona', status:'Open', deadline:addDays(5), notes:'Filed appeal; awaiting hearing.'},
-          {id:'CIV-2025-014', client:'Maria Lopez', type:'Civil', assignee:'I. Barahona', status:'At Risk', deadline:addDays(2), notes:'Need documents from client.'},
-          {id:'CORP-2025-008', client:'Globex Inc.', type:'Corporate', assignee:'Admin', status:'On Hold', deadline:addDays(14), notes:'Waiting for approval.'}
-        ];
-        d.tasks = {
-          'PJ-2025-001':[ {title:'Draft brief', due:addDays(2), owner:'J. Barahona', done:false} ],
-          'CIV-2025-014':[ {title:'Client docs', due:addDays(1), owner:'I. Barahona', done:false} ]
-        };
-        d.comms = {
-          'PJ-2025-001':[ {when:new Date().toISOString(), text:'Call with client; explained timeline.'} ]
-        };
-        d.proposals = [ {id:1, client:'Acme Ltd', title:'Administrative Appeal Services', value:50000, status:'Sent', body:'Scope and timeline…', updated:new Date().toISOString()} ];
-        saveDB(d);
-      }
-    })();
-
-    // ====== Utilities ======
-    function addDays(n){ const dt=new Date(); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10); }
-    function fmtDate(s){ if(!s) return ''; return new Date(s).toLocaleDateString(); }
-    function el(tag, attrs={}, html=''){ const e=document.createElement(tag); Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v)); e.innerHTML=html; return e; }
-    function download(filename, text){ const a=document.createElement('a'); a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(text); a.download=filename; a.click(); }
-
-    // ====== Global Search ======
-    document.getElementById('globalSearch').addEventListener('input', (e)=>{
-      const q = e.target.value.toLowerCase();
-      const d = db();
-      const hits = d.cases.filter(c=>Object.values(c).join(' ').toLowerCase().includes(q));
-      const tbody = document.querySelector('#tblCases tbody');
-      if(location.hash!=='#cases') openView('cases');
-      renderCases(hits);
-    });
-
-    // ====== Dashboard ======
-    function refreshStats(){
-      const d=db();
-      const open = d.cases.filter(c=>c.status!=='Closed').length; 
-      const deadlines = d.cases.filter(c=>{
-        const nd = new Date(c.deadline); const now = new Date(); const diff=(nd-now)/(1000*60*60*24); return diff>=0 && diff<=7;
-      }).length;
-      const pendingProp = d.proposals.filter(p=>['Draft','Sent'].includes(p.status)).length;
-      document.getElementById('statOpen').textContent = open;
-      document.getElementById('statDeadlines').textContent = deadlines;
-      document.getElementById('statProposals').textContent = pendingProp;
-      const allTasks = Object.values(d.tasks).flat(); const done = allTasks.filter(t=>t.done).length; const pct = allTasks.length? Math.round((done/allTasks.length)*100):0; 
-      document.getElementById('progressAll').style.width = pct+'%';
-      document.getElementById('progressAllText').textContent = pct+"% done across active cases";
-      drawCasesChart();
-    }
-    function renderDashboard(){
-      refreshStats();
-      // Upcoming deadlines table
-      const d=db(); const list = [...d.cases].sort((a,b)=> (a.deadline>b.deadline?1:-1)).slice(0,6);
-      const tbody = document.querySelector('#tblUpcoming tbody'); tbody.innerHTML='';
-      list.forEach(c=>{
-        const tr=el('tr');
-        tr.append(el('td',{},fmtDate(c.deadline)));
-        tr.append(el('td',{},c.id+ ' — '+c.client));
-        const t = (d.tasks[c.id]||[]).find(x=>!x.done); tr.append(el('td',{},t? t.title : '—'));
-        tr.append(el('td',{},c.assignee||'—'));
-        tr.append(el('td',{},`<span class="badge status-${cls(c.status)}">${c.status}</span>`));
-        tbody.append(tr);
-      });
-    }
-    function cls(status){ return status.toLowerCase().replace(' ',''); }
-    let chartCasesRef=null, chartPerfRef=null;
-    function drawCasesChart(){
-      const d=db(); const byType={}; d.cases.forEach(c=>byType[c.type]=(byType[c.type]||0)+1);
-      const ctx=document.getElementById('chartCases'); if(chartCasesRef) chartCasesRef.destroy();
-      chartCasesRef = new Chart(ctx,{type:'doughnut', data:{labels:Object.keys(byType), datasets:[{data:Object.values(byType)}]}});
-    }
-
-    // ====== Cases ======
-    function renderCases(forced){
-      const d = db();
-      const fStatus = document.getElementById('caseFilterStatus').value;
-      const fType = document.getElementById('caseFilterType').value;
-      const data = (forced || d.cases).filter(c=> (!fStatus||c.status===fStatus) && (!fType||c.type===fType));
-      const tbody = document.querySelector('#tblCases tbody'); tbody.innerHTML='';
-      data.forEach(c=>{
-        const tr=el('tr');
-        tr.append(el('td',{},`<b>${c.id}</b>`));
-        tr.append(el('td',{},c.client));
-        tr.append(el('td',{},c.type));
-        tr.append(el('td',{},c.assignee||'—'));
-        tr.append(el('td',{},fmtDate(c.deadline)));
-        tr.append(el('td',{},`<span class="badge status-${cls(c.status)}">${c.status}</span>`));
-        tr.append(el('td',{},`<button class="btn secondary" onclick="loadCase('${c.id}')">Edit</button>`));
-        tbody.append(tr);
-      });
-      // Fill lawyers list
-      const dl=document.getElementById('lawyersList'); dl.innerHTML=''; db().users.filter(u=>['Lawyer','Admin','Paralegal'].includes(u.role)).forEach(u=> dl.append(el('option',{value:u.name})) );
-    }
-    function newCaseForm(){ ['caseId','caseClient','caseAssignee','caseNotes'].forEach(id=>document.getElementById(id).value='');
-      document.getElementById('caseType').value='Administrative'; document.getElementById('caseStatus').value='Open'; document.getElementById('caseDeadline').value='';
-      document.getElementById('tblTasks').querySelector('tbody').innerHTML='';
-      document.getElementById('tblComm').querySelector('tbody').innerHTML='';
-    }
-    function openNewCase(){ openView('cases'); newCaseForm(); document.getElementById('caseId').focus(); }
-    function saveCase(){
-      const d=db(); const id=val('caseId'); if(!id) return alert('Case # required');
-      const obj={ id, client:val('caseClient'), type:val('caseType'), assignee:val('caseAssignee'), status:val('caseStatus'), deadline:val('caseDeadline'), notes:val('caseNotes') };
-      const i=d.cases.findIndex(c=>c.id===id); if(i>-1) d.cases[i]=obj; else d.cases.push(obj);
-      saveDB(d); renderCases(); alert('Saved');
-    }
-    function loadCase(id){ const d=db(); const c=d.cases.find(x=>x.id===id); if(!c) return; openView('cases');
-      setVal('caseId',c.id); setVal('caseClient',c.client); setVal('caseType',c.type); setVal('caseAssignee',c.assignee); setVal('caseStatus',c.status); setVal('caseDeadline',c.deadline); setVal('caseNotes',c.notes||'');
-      renderTasks(id); renderComms(id);
-    }
-    function deleteCase(){ const id=val('caseId'); if(!id) return; if(!confirm('Delete case '+id+'?')) return; const d=db(); d.cases=d.cases.filter(c=>c.id!==id); delete d.tasks[id]; delete d.comms[id]; saveDB(d); renderCases(); newCaseForm(); }
-    function val(id){ return document.getElementById(id).value }
-    function setVal(id,v){ document.getElementById(id).value=v||'' }
-
-    // Tasks
-    function renderTasks(id){ const d=db(); const tbody=document.querySelector('#tblTasks tbody'); tbody.innerHTML='';
-      (d.tasks[id]||[]).forEach((t,idx)=>{
-        const tr=el('tr');
-        tr.append(el('td',{},t.title)); tr.append(el('td',{},fmtDate(t.due))); tr.append(el('td',{},t.owner||''));
-        tr.append(el('td',{},`<input type='checkbox' ${t.done?'checked':''} onchange="toggleTask('${id}',${idx},this.checked)">`));
-        tr.append(el('td',{},`<button class='btn secondary' onclick="delTask('${id}',${idx})">Del</button>`));
-        tbody.append(tr);
-      });
-    }
-    function addTask(){ const id=val('caseId'); if(!id) return alert('Save or select a case first.');
-      const d=db(); const list=d.tasks[id]||[]; list.push({title:val('taskTitle'), due:val('taskDue'), owner:val('taskOwner'), done:false}); d.tasks[id]=list; saveDB(d); renderTasks(id); ['taskTitle','taskDue','taskOwner'].forEach(i=>setVal(i,'')); }
-    function toggleTask(id, idx, checked){ const d=db(); d.tasks[id][idx].done=checked; saveDB(d); }
-    function delTask(id, idx){ const d=db(); d.tasks[id].splice(idx,1); saveDB(d); renderTasks(id); }
-
-    // Comms
-    function renderComms(id){ const d=db(); const tbody=document.querySelector('#tblComm tbody'); tbody.innerHTML=''; (d.comms[id]||[]).forEach(c=>{
-      const tr=el('tr'); tr.append(el('td',{},new Date(c.when).toLocaleString())); tr.append(el('td',{},c.text)); tbody.append(tr);
-    }); }
-    function addComm(){ const id=val('caseId'); if(!id) return alert('Select a case'); const d=db(); const list=d.comms[id]||[]; list.push({when:new Date().toISOString(), text:val('commText')}); d.comms[id]=list; saveDB(d); renderComms(id); setVal('commText',''); }
-
-    // ====== Documents ======
-    function renderDocTemplates(){ const d=db(); const sel=document.getElementById('docTemplateSelect'); sel.innerHTML='';
-      d.templates.forEach((t,i)=> sel.append(el('option',{value:i},t.name)) );
-      if(d.templates.length) sel.selectedIndex=0;
-      document.getElementById('docEditor').innerHTML = d.templates[0]?.html || '<p>Start typing…</p>';
-      renderVersions();
-    }
-    function loadTemplate(){ const d=db(); const idx=parseInt(document.getElementById('docTemplateSelect').value); document.getElementById('docEditor').innerHTML=d.templates[idx].html; }
-    function saveDocVersion(){ const d=db(); const html=document.getElementById('docEditor').innerHTML; d.documents.versions.unshift({when:new Date().toISOString(), html}); d.documents.versions = d.documents.versions.slice(0,25); saveDB(d); renderVersions(); }
-    function renderVersions(){ const d=db(); const ul=document.getElementById('docVersions'); ul.innerHTML='';
-      d.documents.versions.forEach((v,i)=>{
-        const li=el('li',{},`<a href="#" onclick="loadVersion(${i});return false;">${new Date(v.when).toLocaleString()}</a> — ${Math.round(v.html.length/10)} words`); ul.append(li);
-      });
-    }
-    function loadVersion(i){ const d=db(); document.getElementById('docEditor').innerHTML=d.documents.versions[i].html; }
-    function exportDoc(){ const html='<!doctype html><meta charset="utf-8"><title>Document</title>'+document.getElementById('docEditor').innerHTML; download('document.html', html); }
-
-    // QR
-    function makeQR(){ const txt=document.getElementById('qrText').value || document.getElementById('docEditor').innerText.slice(0,120);
-      const box=document.getElementById('qrcode'); box.innerHTML=''; QRCode.toCanvas(txt,{width:220, margin:1}, function (err, canvas) { if(err){ alert('QR error'); return;} box.append(canvas); });
-    }
-
-    // ====== Client Portal ======
-    function renderPortal(){ const name = val('portalClient'); const d=db(); const cases=d.cases.filter(c=>c.client.toLowerCase().includes(name.toLowerCase()));
-      const div=document.getElementById('portalOutput'); div.innerHTML='';
-      if(!cases.length){ div.innerHTML='<div class="note">No cases for this client.</div>'; return; }
-      cases.forEach(c=>{
-        const elc=el('div',{class:'card'},`<h3>${c.id} — ${c.type}</h3><div class='note'>Status: ${c.status} • Assignee: ${c.assignee||'-'} • Next: ${fmtDate(c.deadline)||'-'}</div><div style='margin-top:8px'>${(db().tasks[c.id]||[]).map(t=>`<div class='pill'><span class='badge'>${fmtDate(t.due)}</span> ${t.title}</div>`).join('<br>') || '<span class="note">No tasks</span>'}</div>`);
-        div.append(elc);
-      });
-    }
-
-    // Messages
-    function sendMessage(){ const to=val('msgTo'); const body=val('msgBody'); if(!to||!body) return alert('Fill message fields'); const d=db(); d.messages.unshift({when:new Date().toISOString(), to, body}); saveDB(d); renderMsgs(); setVal('msgTo',''); setVal('msgBody',''); }
-    function renderMsgs(){ const tbody=document.querySelector('#tblMsgs tbody'); tbody.innerHTML=''; db().messages.forEach(m=>{
-      const tr=el('tr'); tr.append(el('td',{}, new Date(m.when).toLocaleString())); tr.append(el('td',{}, m.to)); tr.append(el('td',{}, m.body)); tbody.append(tr);
-    }); }
-
-    // Uploads (metadata only)
-    function handleClientUpload(){ const inp=document.getElementById('clientUpload'); const client=val('portalClient')||'Unknown'; const d=db();
-      [...inp.files].forEach(f=> d.uploads.unshift({client, name:f.name, size:f.size, when:new Date().toISOString()}) );
-      saveDB(d); renderUploads(); inp.value=''; }
-    function renderUploads(){ const tbody=document.querySelector('#tblUploads tbody'); tbody.innerHTML=''; db().uploads.forEach(u=>{
-      const tr=el('tr'); tr.append(el('td',{},u.client)); tr.append(el('td',{},u.name)); tr.append(el('td',{},(u.size/1024).toFixed(1)+' KB')); tr.append(el('td',{}, new Date(u.when).toLocaleString())); tbody.append(tr);
-    }); }
-
-    // ====== Workflow ======
-    function saveWorkflow(){ const name=val('wfName'); const stages=val('wfStages').split(',').map(s=>s.trim()).filter(Boolean); if(!name||!stages.length) return alert('Name and at least one stage');
-      const d=db(); const i=d.workflows.findIndex(w=>w.name===name); if(i>-1) d.workflows[i]={name,stages}; else d.workflows.push({name,stages}); saveDB(d); renderWorkflows(); document.getElementById('wfName').value=''; document.getElementById('wfStages').value=''; }
-    function renderWorkflows(){ const tbody=document.querySelector('#tblWorkflows tbody'); tbody.innerHTML=''; db().workflows.forEach(w=>{
-      const tr=el('tr'); tr.append(el('td',{},`<b>${w.name}</b>`)); tr.append(el('td',{}, w.stages.join(' → '))); tr.append(el('td',{}, `<button class='btn secondary' onclick="prefillApply('${w.name}')">Assign…</button>`)); tbody.append(tr);
-    }); }
-    function prefillApply(name){ openView('workflow'); setVal('wfSelect', name); }
-    function fillWorkflowSelect(){ const sel=document.getElementById('wfSelect'); sel.innerHTML=''; db().workflows.forEach(w=> sel.append(el('option',{value:w.name}, w.name)) ); }
-    function applyWorkflow(){ const id=val('wfCase'); const name=val('wfSelect'); if(!id||!name) return alert('Case # and workflow'); const d=db(); const wf=d.workflows.find(w=>w.name===name); if(!wf) return alert('Workflow not found');
-      d.caseStages[id] = wf.stages.map((stage,i)=>({stage, done: i===0? false : false})); saveDB(d); renderCaseStages(); }
-    function renderCaseStages(){ const tbody=document.querySelector('#tblCaseStages tbody'); tbody.innerHTML=''; const d=db(); Object.entries(d.caseStages).forEach(([id, stages])=>{
-      stages.forEach((s,idx)=>{
-        const tr=el('tr'); tr.append(el('td',{},id)); tr.append(el('td',{}, s.stage));
-        tr.append(el('td',{}, `<input type='checkbox' ${s.done?'checked':''} onchange="toggleStage('${id}',${idx},this.checked)">`)); tbody.append(tr);
-      });
-    }); }
-    function toggleStage(id, idx, checked){ const d=db(); d.caseStages[id][idx].done=checked; saveDB(d); refreshStats(); }
-
-    // ====== Reports ======
-    function renderReports(){ const d=db(); const s=document.getElementById('rStatus').value; const a=val('rAssignee').toLowerCase();
-      const data=d.cases.filter(c=> (!s||c.status===s) && (!a || (c.assignee||'').toLowerCase().includes(a)) );
-      const tbody=document.querySelector('#tblReport tbody'); tbody.innerHTML=''; data.forEach(c=>{
-        const tr=el('tr'); tr.append(el('td',{},c.id)); tr.append(el('td',{},c.client)); tr.append(el('td',{},c.type)); tr.append(el('td',{},c.status)); tr.append(el('td',{},c.assignee||'')); tr.append(el('td',{},fmtDate(c.deadline))); tbody.append(tr);
-      });
-      drawPerfChart(data);
-    }
-    function drawPerfChart(data){ const d=data; const byStatus={}; d.forEach(c=> byStatus[c.status]=(byStatus[c.status]||0)+1 ); const ctx=document.getElementById('chartPerf'); if(chartPerfRef) chartPerfRef.destroy(); chartPerfRef=new Chart(ctx,{type:'bar', data:{labels:Object.keys(byStatus), datasets:[{label:'Cases', data:Object.values(byStatus)}]}}); }
-    function exportCasesCSV(){ const d=db(); const rows=[["Case","Client","Type","Status","Assignee","Deadline"]].concat(d.cases.map(c=>[c.id,c.client,c.type,c.status,c.assignee||'',c.deadline||''])); const csv=rows.map(r=>r.map(x=>`"${(x||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n'); download('cases.csv', csv); }
-
-    // ====== Proposals ======
-    function saveProposal(){ const d=db(); const nextId = (d.proposals[0]?.id||0)+1; const obj={ id: nextId, client:val('ppClient'), title:val('ppTitle')||'Service Proposal', value:parseFloat(val('ppValue')||'0'), status:val('ppStatus'), body:val('ppBody'), updated:new Date().toISOString() };
-      d.proposals.unshift(obj); saveDB(d); renderProposals(); makeProposalQR(obj); alert('Saved proposal #'+obj.id); }
-    function renderProposals(){ const tbody=document.querySelector('#tblProposals tbody'); tbody.innerHTML=''; db().proposals.forEach(p=>{
-      const tr=el('tr'); tr.append(el('td',{},'#'+p.id)); tr.append(el('td',{},p.client)); tr.append(el('td',{},p.title)); tr.append(el('td',{}, new Intl.NumberFormat(undefined,{style:'currency', currency:'HNL'}).format(p.value||0)) ); tr.append(el('td',{}, `<span class='badge'>${p.status}</span>`)); tr.append(el('td',{}, new Date(p.updated).toLocaleString()));
-      const cellQR=el('td'); const div=document.createElement('div'); div.id='qr-prop-'+p.id; cellQR.append(div); tr.append(cellQR);
-      tr.append(el('td',{},`<button class='btn secondary' onclick='makeProposalQR(${JSON.stringify(p)})'>QR</button>`));
-      tbody.append(tr);
-    }); }
-    function makeProposalQR(p){ const txt = `Proposal ${p.id} — ${p.client} — ${p.title} — ${p.value}`; const box=document.getElementById('qr-prop-'+p.id); if(!box) return; box.innerHTML=''; QRCode.toCanvas(txt,{width:110, margin:0}, function (err, canvas) { if(!err) box.append(canvas); }); }
-
-    // ====== Settings ======
-    function renderUsers(){ const tbody=document.querySelector('#tblUsers tbody'); tbody.innerHTML=''; db().users.forEach((u,idx)=>{
-      const tr=el('tr'); tr.append(el('td',{},u.name)); tr.append(el('td',{},u.role)); tr.append(el('td',{},`<button class='btn secondary' onclick='delUser(${idx})'>Remove</button>`)); tbody.append(tr);
-    }); }
-    function addUser(){ const name=val('uName'); const role=val('uRole'); if(!name) return; const d=db(); d.users.push({name,role}); saveDB(d); renderUsers(); ['uName'].forEach(i=>setVal(i,'')); }
-    function delUser(i){ const d=db(); d.users.splice(i,1); saveDB(d); renderUsers(); }
-
-    function saveBranding(){ const d=db(); d.settings.brand=val('brandName')||'Your Firm'; d.settings.notifyDays=parseInt(val('notifyDays')||'5'); d.settings.tz=val('tz')||'America/Tegucigalpa';
-      const file=document.getElementById('brandLogo').files[0]; if(file){ const r=new FileReader(); r.onload=()=>{ d.settings.logo=r.result; saveDB(d); loadBrandingIntoUI(); alert('Branding saved'); }; r.readAsDataURL(file); } else { saveDB(d); loadBrandingIntoUI(); alert('Branding saved'); }
-    }
-    function loadBrandingIntoUI(){ const s=db().settings; setVal('brandName', s.brand); document.getElementById('brandNameTop').textContent=s.brand; setVal('notifyDays', s.notifyDays); setVal('tz', s.tz); }
-
-    function downloadBackup(){ download('lcms-backup.json', JSON.stringify(db())) }
-    function restoreBackup(){ const f=document.getElementById('restoreFile').files[0]; if(!f) return alert('Choose a file'); const r=new FileReader(); r.onload=()=>{ try{ localStorage.setItem(DB_KEY, r.result); alert('Restored. Reloading…'); location.reload(); }catch(e){ alert('Invalid file'); } }; r.readAsText(f); }
-    function hardReset(){ if(!confirm('Erase all data?')) return; localStorage.removeItem(DB_KEY); location.reload(); }
-
-    // ====== Notifications (deadline lead time) ======
-    function checkDeadlines(){ const d=db(); const lead=d.settings.notifyDays||5; const now=new Date(); const soon=d.cases.filter(c=>{ if(!c.deadline) return false; const dd=new Date(c.deadline); const days=(dd-now)/(1000*60*60*24); return days>=0 && days<=lead && c.status!=='Closed'; });
-      if(soon.length){ const names=soon.map(c=>c.id+" ("+c.client+")").join(', '); console.log('Upcoming deadlines:', names); }
-    }
-    setInterval(checkDeadlines, 1000*60*5);
-
-    // ====== Init ======
-    window.addEventListener('load', ()=>{
-      // open last view or dashboard
-      const hash=location.hash.replace('#','')||'dashboard'; openView(hash);
-      refreshStats();
-    });
+    // init
+    DB.initDB();
+    Router.mount();
+    Cases.mount();
+    Docs.mount();
+    Portal.mount();
+    Workflow.mount();
+    Reports.mount();
+    Proposals.mount();
+    Settings.mount();
+    Reports.refreshStats(); // initial stats
   </script>
 </body>
 </html>
