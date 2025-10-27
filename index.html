@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <style>button{appearance:none;-webkit-appearance:none;border:none}</style>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LCMS — Law Firm Case Management System (SPA)</title>
@@ -32,6 +31,7 @@
     }
     *{box-sizing:border-box}
     html,body{height:100%}
+    button{appearance:none;-webkit-appearance:none;border:0;background:transparent;color:inherit;font:inherit}
     body{
       margin:0; background:linear-gradient(180deg,var(--bg),#0a1224);
       color:var(--text); font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; 
@@ -80,10 +80,10 @@
     .table{width:100%; border-collapse:collapse}
     .table th,.table td{border-bottom:1px solid var(--border); padding:10px; text-align:left; font-size:14px}
     .badge{font-size:12px; padding:3px 8px; border-radius:999px; border:1px solid var(--border); background:#0f1a2f; color:#b5c7e6}
-    .status-open{border-color:#3b82f6;color:#93c5fd}
-    .status-closed{border-color:#10b981;color:#6ee7b7}
-    .status-hold{border-color:#f59e0b;color:#fcd34d}
-    .status-risk{border-color:#f87171;color:#fecaca}
+    .status-trabajo{border-color:#3b82f6;color:#93c5fd}
+    .status-interno{border-color:#f59e0b;color:#fcd34d}
+    .status-corriendo{border-color:#f87171;color:#fecaca}
+    .status-actuacion{border-color:#10b981;color:#6ee7b7}
     .pill{display:inline-flex; align-items:center; gap:8px}
     .progress {height:8px; background:#0b1020; border:1px solid var(--border); border-radius:999px; overflow:hidden}
     .progress > span{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2))}
@@ -169,33 +169,24 @@
       </div>
     </section>
 
-    <!-- CASES -->
+    <!-- CASES (UPDATED) -->
     <section id="view-cases" class="grid">
       <div class="card">
         <div class="row" style="align-items:flex-end">
           <div class="field"><label>Filter by status</label>
             <select id="caseFilterStatus" onchange="renderCases()">
               <option value="">All</option>
-              <option>Open</option>
-              <option>On Hold</option>
-              <option>At Risk</option>
-              <option>Closed</option>
-            </select>
-          </div>
-          <div class="field"><label>Filter by type</label>
-            <select id="caseFilterType" onchange="renderCases()">
-              <option value="">All</option>
-              <option>Administrative</option>
-              <option>Civil</option>
-              <option>Corporate</option>
-              <option>Immigration</option>
+              <option>EN TRABAJO</option>
+              <option>PLAZO INTERNO</option>
+              <option>CORRIENDO PLAZO</option>
+              <option>EN ACTUACION</option>
             </select>
           </div>
           <button class="btn right" onclick="openNewCase()">➕ New Case</button>
         </div>
         <div class="hr"></div>
         <table class="table" id="tblCases">
-          <thead><tr><th>Case #</th><th>Client</th><th>Type</th><th>Assigned</th><th>Next Deadline</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>Case Code (CC)</th><th>Client</th><th>Assigned</th><th>Next Deadline</th><th>Status</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -205,25 +196,38 @@
         <div class="split">
           <div>
             <div class="row">
-              <div class="field"><label>Case #</label><input id="caseId"></div>
-              <div class="field"><label>Client</label><input id="caseClient"></div>
-            </div>
-            <div class="row">
-              <div class="field"><label>Type</label>
-                <select id="caseType">
-                  <option>Administrative</option><option>Civil</option><option>Corporate</option><option>Immigration</option>
+              <div class="field"><label>Case Code (CC)</label><input id="caseId" placeholder="Auto" readonly></div>
+              <div class="field"><label>Practice Area</label>
+                <select id="casePractice">
+                  <option>Civil</option>
+                  <option>Familia</option>
+                  <option>Corporativo</option>
+                  <option>Laboral</option>
+                  <option>Migratorio</option>
+                  <option>Administrativo</option>
+                  <option>Notarial</option>
                 </select>
               </div>
-              <div class="field"><label>Assignee (Lawyer)</label><input id="caseAssignee" list="lawyersList" placeholder="e.g., J. Barahona"></div>
-              <datalist id="lawyersList"></datalist>
+              <button class="btn" onclick="generateAndFillCC()" style="align-self:flex-end">⚙️ Generate CC</button>
             </div>
             <div class="row">
-              <div class="field"><label>Status</label>
-                <select id="caseStatus">
-                  <option>Open</option><option>On Hold</option><option>At Risk</option><option>Closed</option>
+              <div class="field"><label>Client (from Client Module)</label>
+                <select id="caseClientSel"></select>
+              </div>
+              <div class="field"><label>Assignee (Attorney)</label>
+                <select id="caseAssigneeSelect"></select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="field"><label>Status (linked to Workflow)</label>
+                <select id="caseStatus" disabled>
+                  <option>EN TRABAJO</option>
+                  <option>PLAZO INTERNO</option>
+                  <option>CORRIENDO PLAZO</option>
+                  <option>EN ACTUACION</option>
                 </select>
               </div>
-              <div class="field"><label>Next Deadline</label><input type="date" id="caseDeadline"></div>
+              <div class="field"><label>Next Deadline (from Workflow)</label><input id="caseNextDl" readonly></div>
             </div>
             <div class="field"><label>Notes / History</label><textarea id="caseNotes" rows="6" placeholder="Court filings, calls, meetings…"></textarea></div>
             <div class="toolbar">
@@ -237,7 +241,9 @@
             <div class="row">
               <div class="field"><label>Task</label><input id="taskTitle"></div>
               <div class="field"><label>Due</label><input type="date" id="taskDue"></div>
-              <div class="field"><label>Owner</label><input id="taskOwner" list="lawyersList"></div>
+              <div class="field"><label>Owner</label>
+                <select id="taskOwner"></select>
+              </div>
               <button class="btn" onclick="addTask()">➕ Add</button>
             </div>
             <table class="table" id="tblTasks"><thead><tr><th>Task</th><th>Due</th><th>Owner</th><th>Done</th><th></th></tr></thead><tbody></tbody></table>
@@ -308,7 +314,7 @@
       </div>
     </section>
 
-    <!-- WORKFLOW -->
+    <!-- WORKFLOW (UPDATED) -->
     <section id="view-workflow" class="grid">
       <div class="card">
         <div class="toolbar">
@@ -319,31 +325,32 @@
         <table class="table" id="tblWorkflows"><thead><tr><th>Name</th><th>Stages</th><th>Assign to Case</th></tr></thead><tbody></tbody></table>
       </div>
       <div class="card">
-        <h3>Apply to case</h3>
+        <h3>Apply to case & manage deadlines</h3>
         <div class="row">
-          <div class="field"><label>Case #</label><input id="wfCase"></div>
+          <div class="field"><label>Case Code (CC)</label><input id="wfCase" placeholder="YYYY-XX-####"></div>
           <div class="field"><label>Workflow</label><select id="wfSelect"></select></div>
           <button class="btn" onclick="applyWorkflow()">Apply</button>
         </div>
-        <table class="table" id="tblCaseStages"><thead><tr><th>Case #</th><th>Stage</th><th>Done?</th></tr></thead><tbody></tbody></table>
+        <table class="table" id="tblCaseStages"><thead><tr><th>Case Code</th><th>Stage</th><th>Due</th><th>Active</th><th>Done?</th></tr></thead><tbody></tbody></table>
+        <div class="note">Set <b>Due</b> and <b>Active</b> per stage. Status &amp; Next Deadline auto‑update in Cases.</div>
       </div>
     </section>
 
-    <!-- REPORTS -->
+    <!-- REPORTS (Type removed) -->
     <section id="view-reports" class="grid two">
       <div class="card">
         <div class="row">
           <div class="field"><label>Status Filter</label>
             <select id="rStatus" onchange="renderReports()">
-              <option value="">Any</option><option>Open</option><option>On Hold</option><option>At Risk</option><option>Closed</option>
+              <option value="">Any</option><option>EN TRABAJO</option><option>PLAZO INTERNO</option><option>CORRIENDO PLAZO</option><option>EN ACTUACION</option>
             </select></div>
-          <div class="field"><label>Assignee Filter</label><input id="rAssignee" placeholder="Optional" oninput="renderReports()"></div>
+          <div class="field"><label>Assignee Filter</label><input id="rAssignee" placeholder="Attorney code" oninput="renderReports()"></div>
           <button class="btn right" onclick="exportCasesCSV()">Export CSV</button>
         </div>
-        <table class="table" id="tblReport"><thead><tr><th>Case #</th><th>Client</th><th>Type</th><th>Status</th><th>Assignee</th><th>Next Deadline</th></tr></thead><tbody></tbody></table>
+        <table class="table" id="tblReport"><thead><tr><th>Case Code</th><th>Client</th><th>Status</th><th>Assignee</th><th>Next Deadline</th></tr></thead><tbody></tbody></table>
       </div>
       <div class="card">
-        <h3>Case Performance</h3>
+        <h3>Case Distribution by Practice</h3>
         <canvas id="chartPerf"></canvas>
       </div>
     </section>
@@ -367,19 +374,22 @@
       </div>
     </section>
 
-    <!-- SETTINGS -->
+    <!-- SETTINGS (add Attorneys & Clients editors) -->
     <section id="view-settings" class="grid two">
       <div class="card">
-        <h3>Users & Roles</h3>
-        <div class="row">
-          <div class="field"><label>Full name</label><input id="uName"></div>
-          <div class="field"><label>Role</label>
-            <select id="uRole"><option>Admin</option><option>Lawyer</option><option>Paralegal</option><option>Client</option></select>
-          </div>
-          <button class="btn" onclick="addUser()">➕ Add</button>
-        </div>
-        <table class="table" id="tblUsers"><thead><tr><th>Name</th><th>Role</th><th></th></tr></thead><tbody></tbody></table>
+        <h3>Attorneys (restricted)</h3>
+        <div class="note">Only these 3 codes are allowed: <b>KWMV.15688</b>, <b>JFBI.23413</b>, <b>JCRC.03781</b>. You can edit their display names.</div>
+        <table class="table" id="tblAttorneys"><thead><tr><th>Code</th><th>Name</th><th></th></tr></thead><tbody></tbody></table>
       </div>
+      <div class="card">
+        <h3>Clients</h3>
+        <div class="row">
+          <div class="field"><label>New Client Name</label><input id="newClientName" placeholder="e.g., Acme Ltd"></div>
+          <button class="btn" onclick="addClient()">➕ Add Client</button>
+        </div>
+        <table class="table" id="tblClients"><thead><tr><th>ID</th><th>Name</th><th></th></tr></thead><tbody></tbody></table>
+      </div>
+
       <div class="card">
         <h3>Preferences & Branding</h3>
         <div class="field"><label>Brand / Firm name</label><input id="brandName"></div>
@@ -405,17 +415,31 @@
   </main>
 
   <script>
+    // ====== Maps & constants ======
+    const PRACTICE_MAP = { 'Civil':'CVL','Familia':'FMA','Corporativo':'CRP','Laboral':'LBL','Migratorio':'MGT','Administrativo':'AVO','Notarial':'NTL' };
+    const STATUS_CLASSES = { 'EN TRABAJO':'trabajo', 'PLAZO INTERNO':'interno', 'CORRIENDO PLAZO':'corriendo', 'EN ACTUACION':'actuacion' };
+
     // ====== Simple Local DB (localStorage) ======
-    const DB_KEY = 'lcmsDB_v1';
+    const DB_KEY = 'lcmsDB_v2_casesCC';
     const emptyDB = { cases: [], tasks: {}, comms: {}, documents: {versions: []}, 
       templates: defaultTemplates(), workflows: [], caseStages: {}, proposals: [], users: defaultUsers(),
-      messages: [], uploads: [], settings: {brand:'Your Firm', notifyDays:5, tz:'America/Tegucigalpa', logo:''} };
+      messages: [], uploads: [], settings: defaultSettings() };
+
+    function defaultSettings(){
+      return { brand:'Your Firm', notifyDays:5, tz:'America/Tegucigalpa', logo:'',
+        ccRegistry:{},
+        attorneys:{
+          'KWMV.15688': { code:'KWMV.15688', name:'KWMV (Edit name)' },
+          'JFBI.23413': { code:'JFBI.23413', name:'JFBI (Edit name)' },
+          'JCRC.03781': { code:'JCRC.03781', name:'JCRC (Edit name)' },
+        },
+        clients:[ {id:'C-0001', name:'Acme Ltd'}, {id:'C-0002', name:'Maria Lopez'}, {id:'C-0003', name:'Globex Inc.'} ]
+      };
+    }
 
     function defaultUsers(){
       return [
-        {name:'Admin', role:'Admin'},
-        {name:'J. Barahona', role:'Lawyer'},
-        {name:'I. Barahona', role:'Paralegal'}
+        {name:'Admin', role:'Admin'}
       ];
     }
     function defaultTemplates(){
@@ -444,13 +468,13 @@
       document.querySelectorAll('main > section').forEach(s=>s.classList.add('hidden'));
       document.getElementById('view-'+view).classList.remove('hidden');
       location.hash = view;
-      if(view==='cases') renderCases();
+      if(view==='cases') { renderCases(); fillAttorneySelects(); fillClientSelect(); }
       if(view==='documents') renderDocTemplates();
       if(view==='clientPortal') { renderMsgs(); renderUploads(); }
       if(view==='workflow') { renderWorkflows(); fillWorkflowSelect(); renderCaseStages(); }
       if(view==='reports') renderReports();
       if(view==='proposals') renderProposals();
-      if(view==='settings') renderUsers(); loadBrandingIntoUI();
+      if(view==='settings') { renderAttorneys(); renderClients(); loadBrandingIntoUI(); }
       if(view==='dashboard') renderDashboard();
     }
 
@@ -459,10 +483,10 @@
       if(e.key==='/' && document.activeElement.tagName!=='INPUT' && document.activeElement.getAttribute('contenteditable')!=="true"){
         e.preventDefault(); document.getElementById('globalSearch').focus();
       }
-      if(e.key.toLowerCase()==='n' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){
+      if(e.key.toLowerCase()==='n' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)){
         e.preventDefault(); openView('cases'); openNewCase();
       }
-      if(e.key.toLowerCase()==='g' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){
+      if(e.key.toLowerCase()==='g' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)){
         e.preventDefault(); document.querySelector('.nav button.active')?.focus();
       }
     });
@@ -471,18 +495,16 @@
     (function seed(){
       const d = db();
       if(!d.cases.length){
+        const cc1 = genCC('Administrativo');
+        const cc2 = genCC('Civil');
+        const cc3 = genCC('Corporativo');
         d.cases = [
-          {id:'PJ-2025-001', client:'Acme Ltd', type:'Administrative', assignee:'J. Barahona', status:'Open', deadline:addDays(5), notes:'Filed appeal; awaiting hearing.'},
-          {id:'CIV-2025-014', client:'Maria Lopez', type:'Civil', assignee:'I. Barahona', status:'At Risk', deadline:addDays(2), notes:'Need documents from client.'},
-          {id:'CORP-2025-008', client:'Globex Inc.', type:'Corporate', assignee:'Admin', status:'On Hold', deadline:addDays(14), notes:'Waiting for approval.'}
+          {id:cc1, clientId:'C-0001', client:'Acme Ltd', practice:'Administrativo', assignee:'KWMV.15688', status:'EN TRABAJO', deadline:addDays(5), notes:'Filed appeal; awaiting hearing.'},
+          {id:cc2, clientId:'C-0002', client:'Maria Lopez', practice:'Civil', assignee:'JFBI.23413', status:'PLAZO INTERNO', deadline:addDays(2), notes:'Need documents from client.'},
+          {id:cc3, clientId:'C-0003', client:'Globex Inc.', practice:'Corporativo', assignee:'JCRC.03781', status:'EN TRABAJO', deadline:addDays(14), notes:'Waiting for approval.'}
         ];
-        d.tasks = {
-          'PJ-2025-001':[ {title:'Draft brief', due:addDays(2), owner:'J. Barahona', done:false} ],
-          'CIV-2025-014':[ {title:'Client docs', due:addDays(1), owner:'I. Barahona', done:false} ]
-        };
-        d.comms = {
-          'PJ-2025-001':[ {when:new Date().toISOString(), text:'Call with client; explained timeline.'} ]
-        };
+        d.tasks = { [cc1]:[ {title:'Draft brief', due:addDays(2), owner:'KWMV.15688', done:false} ], [cc2]:[ {title:'Client docs', due:addDays(1), owner:'JFBI.23413', done:false} ] };
+        d.comms = { [cc1]:[ {when:new Date().toISOString(), text:'Call with client; explained timeline.'} ] };
         d.proposals = [ {id:1, client:'Acme Ltd', title:'Administrative Appeal Services', value:50000, status:'Sent', body:'Scope and timeline…', updated:new Date().toISOString()} ];
         saveDB(d);
       }
@@ -493,13 +515,13 @@
     function fmtDate(s){ if(!s) return ''; return new Date(s).toLocaleDateString(); }
     function el(tag, attrs={}, html=''){ const e=document.createElement(tag); Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v)); e.innerHTML=html; return e; }
     function download(filename, text){ const a=document.createElement('a'); a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(text); a.download=filename; a.click(); }
+    function clsFromStatus(status){ return 'status-'+(STATUS_CLASSES[status]||'trabajo'); }
 
     // ====== Global Search ======
     document.getElementById('globalSearch').addEventListener('input', (e)=>{
       const q = e.target.value.toLowerCase();
       const d = db();
-      const hits = d.cases.filter(c=>Object.values(c).join(' ').toLowerCase().includes(q));
-      const tbody = document.querySelector('#tblCases tbody');
+      const hits = d.cases.filter(c=> Object.values(c).join(' ').toLowerCase().includes(q));
       if(location.hash!=='#cases') openView('cases');
       renderCases(hits);
     });
@@ -507,9 +529,9 @@
     // ====== Dashboard ======
     function refreshStats(){
       const d=db();
-      const open = d.cases.filter(c=>c.status!=='Closed').length; 
+      const open = d.cases.filter(c=>c.status!=="Closed").length; 
       const deadlines = d.cases.filter(c=>{
-        const nd = new Date(c.deadline); const now = new Date(); const diff=(nd-now)/(1000*60*60*24); return diff>=0 && diff<=7;
+        const nd = new Date(c.deadline); const now = new Date(); const diff=(nd-now)/(1000*60*60*24); return !isNaN(diff) && diff>=0 && diff<=7;
       }).length;
       const pendingProp = d.proposals.filter(p=>['Draft','Sent'].includes(p.status)).length;
       document.getElementById('statOpen').textContent = open;
@@ -521,8 +543,9 @@
       drawCasesChart();
     }
     function renderDashboard(){
+      // keep deadlines/status fresh from workflow
+      db().cases.forEach(c=>updateDerivedForCase(c.id));
       refreshStats();
-      // Upcoming deadlines table
       const d=db(); const list = [...d.cases].sort((a,b)=> (a.deadline>b.deadline?1:-1)).slice(0,6);
       const tbody = document.querySelector('#tblUpcoming tbody'); tbody.innerHTML='';
       list.forEach(c=>{
@@ -531,60 +554,88 @@
         tr.append(el('td',{},c.id+ ' — '+c.client));
         const t = (d.tasks[c.id]||[]).find(x=>!x.done); tr.append(el('td',{},t? t.title : '—'));
         tr.append(el('td',{},c.assignee||'—'));
-        tr.append(el('td',{},`<span class="badge status-${cls(c.status)}">${c.status}</span>`));
+        tr.append(el('td',{},`<span class="badge ${clsFromStatus(c.status)}">${c.status}</span>`));
         tbody.append(tr);
       });
     }
-    function cls(status){ return status.toLowerCase().replace(' ',''); }
     let chartCasesRef=null, chartPerfRef=null;
     function drawCasesChart(){
-      const d=db(); const byType={}; d.cases.forEach(c=>byType[c.type]=(byType[c.type]||0)+1);
+      const d=db(); const byPractice={}; d.cases.forEach(c=>byPractice[c.practice]=(byPractice[c.practice]||0)+1);
       const ctx=document.getElementById('chartCases'); if(chartCasesRef) chartCasesRef.destroy();
-      chartCasesRef = new Chart(ctx,{type:'doughnut', data:{labels:Object.keys(byType), datasets:[{data:Object.values(byType)}]}});
+      chartCasesRef = new Chart(ctx,{type:'doughnut', data:{labels:Object.keys(byPractice), datasets:[{data:Object.values(byPractice)}]}});
     }
+
+    // ====== Case Code generation ======
+    function genCC(practiceName){
+      const year = new Date().getFullYear();
+      const abbr = PRACTICE_MAP[practiceName] || 'GEN';
+      const d = db(); const y = String(year);
+      if(!d.settings.ccRegistry) d.settings.ccRegistry = {}; if(!d.settings.ccRegistry[y]) d.settings.ccRegistry[y]=[];
+      let n, tries=0; do{ n = Math.floor(Math.random()*(10001-101))+101; tries++; } while(d.settings.ccRegistry[y].includes(n) && tries<20000);
+      d.settings.ccRegistry[y].push(n); saveDB(d);
+      return `${year}-${abbr}-${String(n).padStart(4,'0')}`;
+    }
+    function generateAndFillCC(){ const p = val('casePractice'); const code = genCC(p); setVal('caseId', code); }
 
     // ====== Cases ======
     function renderCases(forced){
       const d = db();
+      // keep statuses & deadlines fresh from workflow
+      d.cases.forEach(c=>updateDerivedForCase(c.id)); saveDB(d);
       const fStatus = document.getElementById('caseFilterStatus').value;
-      const fType = document.getElementById('caseFilterType').value;
-      const data = (forced || d.cases).filter(c=> (!fStatus||c.status===fStatus) && (!fType||c.type===fType));
+      const data = (forced || d.cases).filter(c=> (!fStatus||c.status===fStatus));
       const tbody = document.querySelector('#tblCases tbody'); tbody.innerHTML='';
       data.forEach(c=>{
         const tr=el('tr');
         tr.append(el('td',{},`<b>${c.id}</b>`));
         tr.append(el('td',{},c.client));
-        tr.append(el('td',{},c.type));
         tr.append(el('td',{},c.assignee||'—'));
         tr.append(el('td',{},fmtDate(c.deadline)));
-        tr.append(el('td',{},`<span class="badge status-${cls(c.status)}">${c.status}</span>`));
+        tr.append(el('td',{},`<span class="badge ${clsFromStatus(c.status)}">${c.status}</span>`));
         tr.append(el('td',{},`<button class="btn secondary" onclick="loadCase('${c.id}')">Edit</button>`));
         tbody.append(tr);
       });
-      // Fill lawyers list
-      const dl=document.getElementById('lawyersList'); dl.innerHTML=''; db().users.filter(u=>['Lawyer','Admin','Paralegal'].includes(u.role)).forEach(u=> dl.append(el('option',{value:u.name})) );
+      fillAttorneySelects();
+      fillClientSelect();
     }
-    function newCaseForm(){ ['caseId','caseClient','caseAssignee','caseNotes'].forEach(id=>document.getElementById(id).value='');
-      document.getElementById('caseType').value='Administrative'; document.getElementById('caseStatus').value='Open'; document.getElementById('caseDeadline').value='';
+    function newCaseForm(){ ['caseId','caseNotes'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('casePractice').value='Administrativo';
+      document.getElementById('caseStatus').value='EN TRABAJO';
+      document.getElementById('caseNextDl').value='';
       document.getElementById('tblTasks').querySelector('tbody').innerHTML='';
       document.getElementById('tblComm').querySelector('tbody').innerHTML='';
     }
-    function openNewCase(){ openView('cases'); newCaseForm(); document.getElementById('caseId').focus(); }
+    function openNewCase(){ openView('cases'); newCaseForm(); document.getElementById('casePractice').focus(); }
     function saveCase(){
-      const d=db(); const id=val('caseId'); if(!id) return alert('Case # required');
-      const obj={ id, client:val('caseClient'), type:val('caseType'), assignee:val('caseAssignee'), status:val('caseStatus'), deadline:val('caseDeadline'), notes:val('caseNotes') };
+      const d=db(); const id=val('caseId'); if(!id){ alert('Generate Case Code (CC) first'); return; }
+      const clientId = val('caseClientSel'); if(!clientId){ alert('Select a client from Client Module'); return; }
+      const client = (d.settings.clients.find(c=>c.id===clientId)||{}).name || '';
+      const obj={ id,
+        clientId, client,
+        practice: val('casePractice'),
+        assignee: val('caseAssigneeSelect'),
+        status: val('caseStatus'),
+        deadline: val('caseNextDl')||'',
+        notes: val('caseNotes') };
       const i=d.cases.findIndex(c=>c.id===id); if(i>-1) d.cases[i]=obj; else d.cases.push(obj);
       saveDB(d); renderCases(); alert('Saved');
     }
     function loadCase(id){ const d=db(); const c=d.cases.find(x=>x.id===id); if(!c) return; openView('cases');
-      setVal('caseId',c.id); setVal('caseClient',c.client); setVal('caseType',c.type); setVal('caseAssignee',c.assignee); setVal('caseStatus',c.status); setVal('caseDeadline',c.deadline); setVal('caseNotes',c.notes||'');
+      setVal('caseId',c.id); setVal('casePractice',c.practice); setVal('caseAssigneeSelect',c.assignee); setVal('caseStatus',c.status); setVal('caseNextDl',c.deadline||''); setVal('caseNotes',c.notes||'');
+      setVal('caseClientSel', c.clientId||'');
       renderTasks(id); renderComms(id);
     }
-    function deleteCase(){ const id=val('caseId'); if(!id) return; if(!confirm('Delete case '+id+'?')) return; const d=db(); d.cases=d.cases.filter(c=>c.id!==id); delete d.tasks[id]; delete d.comms[id]; saveDB(d); renderCases(); newCaseForm(); }
+    function deleteCase(){ const id=val('caseId'); if(!id) return; if(!confirm('Delete case '+id+'?')) return; const d=db(); d.cases=d.cases.filter(c=>c.id!==id); delete d.tasks[id]; delete d.comms[id]; delete d.caseStages[id]; saveDB(d); renderCases(); newCaseForm(); }
     function val(id){ return document.getElementById(id).value }
-    function setVal(id,v){ document.getElementById(id).value=v||'' }
+    function setVal(id,v){ const el=document.getElementById(id); if(el) el.value=v||'' }
 
     // Tasks
+    function fillAttorneySelects(){ const selA=document.getElementById('caseAssigneeSelect'); const taskOwner=document.getElementById('taskOwner'); if(!selA||!taskOwner) return; const d=db(); const entries=Object.values(d.settings.attorneys);
+      selA.innerHTML=''; taskOwner.innerHTML='';
+      entries.forEach(a=>{ selA.append(el('option',{value:a.code}, `${a.code} — ${a.name}`)); taskOwner.append(el('option',{value:a.code}, `${a.code}`)); });
+    }
+    function fillClientSelect(){ const sel=document.getElementById('caseClientSel'); if(!sel) return; sel.innerHTML=''; db().settings.clients.forEach(c=> sel.append(el('option',{value:c.id}, `${c.id} — ${c.name}`)) ); }
+
     function renderTasks(id){ const d=db(); const tbody=document.querySelector('#tblTasks tbody'); tbody.innerHTML='';
       (d.tasks[id]||[]).forEach((t,idx)=>{
         const tr=el('tr');
@@ -595,7 +646,7 @@
       });
     }
     function addTask(){ const id=val('caseId'); if(!id) return alert('Save or select a case first.');
-      const d=db(); const list=d.tasks[id]||[]; list.push({title:val('taskTitle'), due:val('taskDue'), owner:val('taskOwner'), done:false}); d.tasks[id]=list; saveDB(d); renderTasks(id); ['taskTitle','taskDue','taskOwner'].forEach(i=>setVal(i,'')); }
+      const d=db(); const list=d.tasks[id]||[]; list.push({title:val('taskTitle'), due:val('taskDue'), owner:val('taskOwner'), done:false}); d.tasks[id]=list; saveDB(d); renderTasks(id); ['taskTitle','taskDue'].forEach(i=>setVal(i,'')); }
     function toggleTask(id, idx, checked){ const d=db(); d.tasks[id][idx].done=checked; saveDB(d); }
     function delTask(id, idx){ const d=db(); d.tasks[id].splice(idx,1); saveDB(d); renderTasks(id); }
 
@@ -632,7 +683,7 @@
       const div=document.getElementById('portalOutput'); div.innerHTML='';
       if(!cases.length){ div.innerHTML='<div class="note">No cases for this client.</div>'; return; }
       cases.forEach(c=>{
-        const elc=el('div',{class:'card'},`<h3>${c.id} — ${c.type}</h3><div class='note'>Status: ${c.status} • Assignee: ${c.assignee||'-'} • Next: ${fmtDate(c.deadline)||'-'}</div><div style='margin-top:8px'>${(db().tasks[c.id]||[]).map(t=>`<div class='pill'><span class='badge'>${fmtDate(t.due)}</span> ${t.title}</div>`).join('<br>') || '<span class="note">No tasks</span>'}</div>`);
+        const elc=el('div',{class:'card'},`<h3>${c.id} — ${c.practice}</h3><div class='note'>Status: ${c.status} • Assignee: ${c.assignee||'-'} • Next: ${fmtDate(c.deadline)||'-'}</div><div style='margin-top:8px'>${(db().tasks[c.id]||[]).map(t=>`<div class='pill'><span class='badge'>${fmtDate(t.due)}</span> ${t.title}</div>`).join('<br>') || '<span class="note">No tasks</span>'}</div>`);
         div.append(elc);
       });
     }
@@ -659,26 +710,44 @@
     }); }
     function prefillApply(name){ openView('workflow'); setVal('wfSelect', name); }
     function fillWorkflowSelect(){ const sel=document.getElementById('wfSelect'); sel.innerHTML=''; db().workflows.forEach(w=> sel.append(el('option',{value:w.name}, w.name)) ); }
-    function applyWorkflow(){ const id=val('wfCase'); const name=val('wfSelect'); if(!id||!name) return alert('Case # and workflow'); const d=db(); const wf=d.workflows.find(w=>w.name===name); if(!wf) return alert('Workflow not found');
-      d.caseStages[id] = wf.stages.map((stage,i)=>({stage, done: i===0? false : false})); saveDB(d); renderCaseStages(); }
+    function applyWorkflow(){ const id=val('wfCase'); const name=val('wfSelect'); if(!id||!name) return alert('Case Code and workflow'); const d=db(); const wf=d.workflows.find(w=>w.name===name); if(!wf) return alert('Workflow not found');
+      d.caseStages[id] = wf.stages.map((stage)=>({stage, due:'', done:false, active:false})); saveDB(d); renderCaseStages(); updateDerivedForCase(id); renderCases(); alert('Workflow applied'); }
     function renderCaseStages(){ const tbody=document.querySelector('#tblCaseStages tbody'); tbody.innerHTML=''; const d=db(); Object.entries(d.caseStages).forEach(([id, stages])=>{
       stages.forEach((s,idx)=>{
         const tr=el('tr'); tr.append(el('td',{},id)); tr.append(el('td',{}, s.stage));
+        tr.append(el('td',{}, `<input type='date' value='${s.due||""}' onchange="setStageDue('${id}',${idx},this.value)">`));
+        tr.append(el('td',{}, `<input type='radio' name='act_${id}' ${s.active?'checked':''} onchange="setStageActive('${id}',${idx},this.checked)">`));
         tr.append(el('td',{}, `<input type='checkbox' ${s.done?'checked':''} onchange="toggleStage('${id}',${idx},this.checked)">`)); tbody.append(tr);
       });
     }); }
-    function toggleStage(id, idx, checked){ const d=db(); d.caseStages[id][idx].done=checked; saveDB(d); refreshStats(); }
+    function setStageDue(id, idx, valv){ const d=db(); if(!d.caseStages[id]) return; d.caseStages[id][idx].due=valv; saveDB(d); updateDerivedForCase(id); renderCases(); }
+    function setStageActive(id, idx, checked){ const d=db(); if(!d.caseStages[id]) return; d.caseStages[id].forEach((s,i)=> s.active = (i===idx) ? checked : false); saveDB(d); updateDerivedForCase(id); renderCases(); }
+    function toggleStage(id, idx, checked){ const d=db(); if(!d.caseStages[id]) return; d.caseStages[id][idx].done=checked; saveDB(d); updateDerivedForCase(id); renderCases(); refreshStats(); }
+
+    // Link status & next deadline to workflow
+    function computeNextDeadline(id){ const d=db(); const stages=(d.caseStages[id]||[]).filter(s=>!s.done && s.due).map(s=>s.due).sort(); return stages[0]||''; }
+    function computeStatus(id){ const d=db(); const stages=d.caseStages[id]||[]; const lead=d.settings.notifyDays||5; const now=new Date();
+      const overdue = stages.some(s=>!s.done && s.due && new Date(s.due) < now);
+      const soon = stages.some(s=>!s.done && s.due && ((new Date(s.due)-now)/(1000*60*60*24) <= lead) && (new Date(s.due)-now)>=0);
+      const active = stages.some(s=>s.active && !s.done);
+      if(overdue) return 'CORRIENDO PLAZO';
+      if(soon) return 'PLAZO INTERNO';
+      if(active) return 'EN ACTUACION';
+      return 'EN TRABAJO';
+    }
+    function updateDerivedForCase(id){ const d=db(); const i=d.cases.findIndex(c=>c.id===id); if(i<0) return; d.cases[i].deadline = computeNextDeadline(id) || d.cases[i].deadline || ''; d.cases[i].status = computeStatus(id); saveDB(d); setVal('caseNextDl', d.cases[i].deadline || ''); setVal('caseStatus', d.cases[i].status); }
 
     // ====== Reports ======
     function renderReports(){ const d=db(); const s=document.getElementById('rStatus').value; const a=val('rAssignee').toLowerCase();
       const data=d.cases.filter(c=> (!s||c.status===s) && (!a || (c.assignee||'').toLowerCase().includes(a)) );
       const tbody=document.querySelector('#tblReport tbody'); tbody.innerHTML=''; data.forEach(c=>{
-        const tr=el('tr'); tr.append(el('td',{},c.id)); tr.append(el('td',{},c.client)); tr.append(el('td',{},c.type)); tr.append(el('td',{},c.status)); tr.append(el('td',{},c.assignee||'')); tr.append(el('td',{},fmtDate(c.deadline))); tbody.append(tr);
+        const tr=el('tr'); tr.append(el('td',{},c.id)); tr.append(el('td',{},c.client)); tr.append(el('td',{},c.status)); tr.append(el('td',{},c.assignee||'')); tr.append(el('td',{},fmtDate(c.deadline))); tbody.append(tr);
       });
       drawPerfChart(data);
     }
-    function drawPerfChart(data){ const d=data; const byStatus={}; d.forEach(c=> byStatus[c.status]=(byStatus[c.status]||0)+1 ); const ctx=document.getElementById('chartPerf'); if(chartPerfRef) chartPerfRef.destroy(); chartPerfRef=new Chart(ctx,{type:'bar', data:{labels:Object.keys(byStatus), datasets:[{label:'Cases', data:Object.values(byStatus)}]}}); }
-    function exportCasesCSV(){ const d=db(); const rows=[["Case","Client","Type","Status","Assignee","Deadline"]].concat(d.cases.map(c=>[c.id,c.client,c.type,c.status,c.assignee||'',c.deadline||''])); const csv=rows.map(r=>r.map(x=>`"${(x||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n'); download('cases.csv', csv); }
+    function drawPerfChart(data){ const d=data; const byPractice={}; d.forEach(c=> byPractice[c.practice]=(byPractice[c.practice]||0)+1 ); const ctx=document.getElementById('chartPerf'); if(chartPerfRef) chartPerfRef.destroy(); chartPerfRef=new Chart(ctx,{type:'bar', data:{labels:Object.keys(byPractice), datasets:[{label:'Cases', data:Object.values(byPractice)}]}}); }
+    function exportCasesCSV(){ const d=db(); const rows=[["Case Code","Client","Status","Assignee","Next Deadline"]].concat(d.cases.map(c=>[c.id,c.client,c.status,c.assignee||'',c.deadline||''])); const csv=rows.map(r=>r.map(x=>`"${(x||'').toString().replace(/"/g,'""')}"`).join(',')).join('
+'); download('cases.csv', csv); }
 
     // ====== Proposals ======
     function saveProposal(){ const d=db(); const nextId = (d.proposals[0]?.id||0)+1; const obj={ id: nextId, client:val('ppClient'), title:val('ppTitle')||'Service Proposal', value:parseFloat(val('ppValue')||'0'), status:val('ppStatus'), body:val('ppBody'), updated:new Date().toISOString() };
@@ -691,12 +760,17 @@
     }); }
     function makeProposalQR(p){ const txt = `Proposal ${p.id} — ${p.client} — ${p.title} — ${p.value}`; const box=document.getElementById('qr-prop-'+p.id); if(!box) return; box.innerHTML=''; QRCode.toCanvas(txt,{width:110, margin:0}, function (err, canvas) { if(!err) box.append(canvas); }); }
 
-    // ====== Settings ======
-    function renderUsers(){ const tbody=document.querySelector('#tblUsers tbody'); tbody.innerHTML=''; db().users.forEach((u,idx)=>{
-      const tr=el('tr'); tr.append(el('td',{},u.name)); tr.append(el('td',{},u.role)); tr.append(el('td',{},`<button class='btn secondary' onclick='delUser(${idx})'>Remove</button>`)); tbody.append(tr);
-    }); }
-    function addUser(){ const name=val('uName'); const role=val('uRole'); if(!name) return; const d=db(); d.users.push({name,role}); saveDB(d); renderUsers(); ['uName'].forEach(i=>setVal(i,'')); }
-    function delUser(i){ const d=db(); d.users.splice(i,1); saveDB(d); renderUsers(); }
+    // ====== Settings: Attorneys & Clients ======
+    function renderAttorneys(){ const tbody=document.querySelector('#tblAttorneys tbody'); tbody.innerHTML=''; const entries=Object.values(db().settings.attorneys);
+      entries.forEach(a=>{ const tr=el('tr'); tr.append(el('td',{},a.code)); tr.append(el('td',{},`<input value='${a.name.replace(/'/g,"&#39;")}' oninput="editAttorneyName('${a.code}', this.value)">`)); tr.append(el('td',{},'')); tbody.append(tr); }); }
+    function editAttorneyName(code, name){ const d=db(); if(d.settings.attorneys[code]){ d.settings.attorneys[code].name = name; saveDB(d); fillAttorneySelects(); renderCases(); }}
+
+    function renderClients(){ const tbody=document.querySelector('#tblClients tbody'); tbody.innerHTML=''; db().settings.clients.forEach((c,idx)=>{ const tr=el('tr'); tr.append(el('td',{},c.id)); tr.append(el('td',{},`<input value='${c.name.replace(/'/g,"&#39;")}' oninput="editClient(${idx}, this.value)">`)); tr.append(el('td',{},`<button class='btn secondary' onclick='delClient(${idx})'>Remove</button>`)); tbody.append(tr); }); }
+    function addClient(){ const name=val('newClientName'); if(!name) return; const d=db(); const nextId = 'C-'+String((d.settings.clients.length+1)).padStart(4,'0'); d.settings.clients.push({id:nextId, name}); saveDB(d); setVal('newClientName',''); renderClients(); fillClientSelect(); }
+    function editClient(idx, name){ const d=db(); d.settings.clients[idx].name=name; saveDB(d); fillClientSelect(); renderCases(); }
+    function delClient(idx){ const d=db(); const id=d.settings.clients[idx].id; if(confirm('Remove client '+id+'?')){ d.settings.clients.splice(idx,1); // also clear on cases
+        d.cases.forEach(c=>{ if(c.clientId===id){ c.clientId=''; c.client=''; }}); saveDB(d); renderClients(); fillClientSelect(); renderCases(); }
+    }
 
     function saveBranding(){ const d=db(); d.settings.brand=val('brandName')||'Your Firm'; d.settings.notifyDays=parseInt(val('notifyDays')||'5'); d.settings.tz=val('tz')||'America/Tegucigalpa';
       const file=document.getElementById('brandLogo').files[0]; if(file){ const r=new FileReader(); r.onload=()=>{ d.settings.logo=r.result; saveDB(d); loadBrandingIntoUI(); alert('Branding saved'); }; r.readAsDataURL(file); } else { saveDB(d); loadBrandingIntoUI(); alert('Branding saved'); }
@@ -708,14 +782,13 @@
     function hardReset(){ if(!confirm('Erase all data?')) return; localStorage.removeItem(DB_KEY); location.reload(); }
 
     // ====== Notifications (deadline lead time) ======
-    function checkDeadlines(){ const d=db(); const lead=d.settings.notifyDays||5; const now=new Date(); const soon=d.cases.filter(c=>{ if(!c.deadline) return false; const dd=new Date(c.deadline); const days=(dd-now)/(1000*60*60*24); return days>=0 && days<=lead && c.status!=='Closed'; });
+    function checkDeadlines(){ const d=db(); const lead=d.settings.notifyDays||5; const now=new Date(); const soon=d.cases.filter(c=>{ if(!c.deadline) return false; const dd=new Date(c.deadline); const days=(dd-now)/(1000*60*60*24); return !isNaN(days) && days>=0 && days<=lead; });
       if(soon.length){ const names=soon.map(c=>c.id+" ("+c.client+")").join(', '); console.log('Upcoming deadlines:', names); }
     }
     setInterval(checkDeadlines, 1000*60*5);
 
     // ====== Init ======
     window.addEventListener('load', ()=>{
-      // open last view or dashboard
       const hash=location.hash.replace('#','')||'dashboard'; openView(hash);
       refreshStats();
     });
