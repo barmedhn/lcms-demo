@@ -746,8 +746,7 @@
       drawPerfChart(data);
     }
     function drawPerfChart(data){ const d=data; const byPractice={}; d.forEach(c=> byPractice[c.practice]=(byPractice[c.practice]||0)+1 ); const ctx=document.getElementById('chartPerf'); if(chartPerfRef) chartPerfRef.destroy(); chartPerfRef=new Chart(ctx,{type:'bar', data:{labels:Object.keys(byPractice), datasets:[{label:'Cases', data:Object.values(byPractice)}]}}); }
-    function exportCasesCSV(){ const d=db(); const rows=[["Case Code","Client","Status","Assignee","Next Deadline"]].concat(d.cases.map(c=>[c.id,c.client,c.status,c.assignee||'',c.deadline||''])); const csv=rows.map(r=>r.map(x=>`"${(x||'').toString().replace(/"/g,'""')}"`).join(',')).join('
-'); download('cases.csv', csv); }
+    function exportCasesCSV(){ const d=db(); const rows=[["Case Code","Client","Status","Assignee","Next Deadline"]].concat(d.cases.map(c=>[c.id,c.client,c.status,c.assignee||'',c.deadline||''])); const csv=rows.map(r=>r.map(x=>`"${(x||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n'); download('cases.csv', csv); }
 
     // ====== Proposals ======
     function saveProposal(){ const d=db(); const nextId = (d.proposals[0]?.id||0)+1; const obj={ id: nextId, client:val('ppClient'), title:val('ppTitle')||'Service Proposal', value:parseFloat(val('ppValue')||'0'), status:val('ppStatus'), body:val('ppBody'), updated:new Date().toISOString() };
